@@ -35,7 +35,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 };
 
 class MainLoop : public Component {
-    TileMap* map;
+    TileMap *map;
 
   public:
     MainLoop() {
