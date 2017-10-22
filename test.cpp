@@ -1,7 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include "tinycompo.hpp"
 
-class TileMap : public sf::Drawable, public sf::Transformable {
+class TileMap : public sf::Drawable, public sf::Transformable, public Component {
     sf::Texture tileset;
     sf::VertexArray array;
 
@@ -35,9 +35,12 @@ class TileMap : public sf::Drawable, public sf::Transformable {
 };
 
 class MainLoop : public Component {
+    TileMap* map;
+
   public:
     MainLoop() {
         port("go", &MainLoop::go);
+        port("tilemap", &MainLoop::map);
     }
 
     std::string _debug() const override { return "MainLoop"; }
@@ -46,10 +49,9 @@ class MainLoop : public Component {
         sf::RenderWindow window(sf::VideoMode(500, 500), "Test");
         window.setFramerateLimit(30);
 
-        TileMap map;
         std::vector<int> tiles = {0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 1, 0, 2,
                                   0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0, 0};
-        map.load(tiles);
+        map->load(tiles);
 
         while (window.isOpen()) {
             sf::Event event;
@@ -58,16 +60,18 @@ class MainLoop : public Component {
             }
 
             window.clear();
-            window.draw(map);
+            window.draw(*map);
             window.display();
         }
     }
 };
 
 int main() {
-    Model<> model;
+    Model model;
     model.component<MainLoop>("mainloop");
+    model.component<TileMap>("tilemap");
+    model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
 
-    Assembly<> assembly(model);
+    Assembly assembly(model);
     assembly.call("mainloop", "go");
 }

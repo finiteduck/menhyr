@@ -2,11 +2,14 @@
 
 all: test_bin
 
-test_bin: test.cpp
+tinycompo.hpp:
+	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > tinycompo.hpp
+
+test_bin: test.cpp tinycompo.hpp
 	$(CXX) test.cpp -o test_bin -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++11
 
 test: test_bin
 	./test_bin
 
 clean:
-	rm -f *.o *_bin
+	rm -f *.o *_bin tinycompo.hpp

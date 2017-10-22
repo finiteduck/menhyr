@@ -1,5 +1,4 @@
-/*
-Copyright or © or Copr. Centre National de la Recherche Scientifique (CNRS) (2017/05/03)
+/* Copyright or © or Copr. Centre National de la Recherche Scientifique (CNRS) (2017/05/03)
 Contributors:
 - Vincent Lanore <vincent.lanore@gmail.com>
 
@@ -20,8 +19,7 @@ modifying and/or developing or reproducing the software by the user in light of 
 of free software, that may mean that it is complicated to manipulate, and that also therefore means
 that it is reserved for developers and experienced professionals having in-depth computer knowledge.
 Users are therefore encouraged to load and test the software's suitability as regards their
-requirements in conditions enabling the security of their systems and/or globalModel to be ensured
-and,
+requirements in conditions enabling the security of their systems and/or data to be ensured and,
 more generally, to use and operate it in the same conditions as regards security.
 
 The fact that you are presently reading this means that you have had knowledge of the CeCILL-B
@@ -31,17 +29,37 @@ license and that you accept its terms.*/
 #define TINYCOMPO_HPP
 
 #include <cxxabi.h>
+#include <string.h>
 #include <exception>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <list>
 #include <map>
 #include <memory>
+#include <numeric>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+/*
+====================================================================================================
+  ~*~ Various forward-declarations and abstract interfaces ~*~
+==================================================================================================*/
+class Model;
+class Assembly;
+class _AssemblyGraph;
+
+template <class T>  // this is an empty helper class that is used to pass T to the _ComponentBuilder
+class _Type {};     // constructor below
+
+struct _AbstractPort {
+    virtual ~_AbstractPort() = default;
+};
+
+struct _AbstractAddress {};  // for identification of _Address types encountered in the wild
 /*
 ====================================================================================================
   ~*~ Debug ~*~
@@ -50,18 +68,14 @@ license and that you accept its terms.*/
 #ifdef __GNUG__
 std::string demangle(const char* name) {
     int status{0};
-
-    std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status),
-                                               std::free};
-
+    std::unique_ptr<char, void (*)(void*)> res{abi::__cxa_demangle(name, NULL, NULL, &status), std::free};
     return (status == 0) ? res.get() : name;
 }
 #else
 std::string demangle(const char* name) { return name; }
 #endif
 
-class TinycompoException : public std::exception {
-  public:
+struct TinycompoException : public std::exception {
     std::string message{""};
     explicit TinycompoException(const std::string& init = "") : message{init} {}
     const char* what() const noexcept override { return message.c_str(); }
@@ -96,20 +110,12 @@ std::ostream* TinycompoDebug::error_stream = &std::cerr;
 /*
 ====================================================================================================
   ~*~ _Port class ~*~
-  A class that is initialized with a pointer to a method 'void prop(Args)' of an object of class C,
-  and provides a method called '_set(Args...)' which calls prop.
-  _Port<Args...> derives from _VirtualPort which allows the storage of pointers to _Port by
-  converting them to _VirtualPort*. These classes are for internal use by tinycompo and should not
+  _Port<Args...> derives from _AbstractPort which allows the storage of pointers to _Port by
+  converting them to _AbstractPort*. These classes are for internal use by tinycompo and should not
   be seen by the user (as denoted by the underscore prefixes).
 ==================================================================================================*/
-class _VirtualPort {
-  public:
-    virtual ~_VirtualPort() = default;
-};
-
 template <class... Args>
-class _Port : public _VirtualPort {
-  public:
+struct _Port : public _AbstractPort {
     std::function<void(Args...)> _set;
 
     _Port() = delete;
@@ -117,6 +123,19 @@ class _Port : public _VirtualPort {
     template <class C>
     explicit _Port(C* ref, void (C::*prop)(Args...))
         : _set([=](const Args... args) { (ref->*prop)(std::forward<const Args>(args)...); }) {}
+
+    template <class C, class Type>
+    explicit _Port(C* ref, Type(C::*prop)) : _set([=](const Type arg) { ref->*prop = arg; }) {}
+};
+
+template <class Interface>
+struct _ProvidePort : public _AbstractPort {
+    std::function<Interface*()> _get;
+
+    _ProvidePort() = delete;
+
+    template <class C>
+    explicit _ProvidePort(C* ref, Interface* (C::*prop)()) : _get([=]() { return (ref->*prop)(); }) {}
 };
 
 /*
@@ -127,19 +146,32 @@ class _Port : public _VirtualPort {
   infrastructure required to declare ports.
 ==================================================================================================*/
 class Component {
-    std::map<std::string, std::unique_ptr<_VirtualPort>> _ports;
+    std::map<std::string, std::unique_ptr<_AbstractPort>> _ports;
+    std::string name{""};
 
   public:
     Component(const Component&) = delete;  // forbidding copy
     Component() = default;
     virtual ~Component() = default;
 
-    virtual std::string _debug() const = 0;
+    virtual std::string _debug() const { return "Component"; };
 
     template <class C, class... Args>
-    void port(std::string name, void (C::*prop)(Args...)) {
-        _ports[name] = std::unique_ptr<_VirtualPort>(
-            static_cast<_VirtualPort*>(new _Port<const Args...>(dynamic_cast<C*>(this), prop)));
+    void port(std::string name, void (C::*prop)(Args...)) {  // port is a setter member function
+        _ports[name] = std::unique_ptr<_AbstractPort>(
+            static_cast<_AbstractPort*>(new _Port<const Args...>(dynamic_cast<C*>(this), prop)));
+    }
+
+    template <class C, class Arg>
+    void port(std::string name, Arg(C::*prop)) {  // port is a data member
+        _ports[name] =
+            std::unique_ptr<_AbstractPort>(static_cast<_AbstractPort*>(new _Port<const Arg>(dynamic_cast<C*>(this), prop)));
+    }
+
+    template <class C, class Interface>
+    void provide(std::string name, Interface* (C::*prop)()) {
+        _ports[name] = std::unique_ptr<_AbstractPort>(
+            static_cast<_AbstractPort*>(new _ProvidePort<Interface>(dynamic_cast<C*>(this), prop)));
     }
 
     template <class... Args>
@@ -155,253 +187,393 @@ class Component {
                 ptr->_set(std::forward<Args>(args)...);
             } else {  // casting failed, trying to provide useful error message
                 TinycompoDebug e{"setting property failed"};
-                e << "Type " << demangle(typeid(_Port<const Args...>).name())
-                  << " does not seem to match port " << name << '.';
+                e << "Type " << demangle(typeid(_Port<const Args...>).name()) << " does not seem to match port " << name
+                  << '.';
                 e.fail();
             }
         }
     }
+
+    template <class Interface>
+    Interface* get(std::string name) {
+        return dynamic_cast<_ProvidePort<Interface>*>(_ports[name].get())->_get();
+    }
+
+    void set_name(const std::string& n) { name = n; }
+    std::string get_name() { return name; }
 };
 
 /*
 ====================================================================================================
-  ~*~ _Component class ~*~
+  ~*~ _ComponentBuilder class ~*~
   A small class that is capable of storing a constructor call for any Component child class and
   execute said call later on demand. The class itself is not templated (allowing direct storage)
   but the constructor call is. This is an internal tinycompo class that should never be seen by
   the user (as denoted by the underscore prefix).
 ==================================================================================================*/
-template <class T>  // this is an empty helper class that is used to pass T to the _Component
-class _Type {};     // constructor below
-
-class _Component {
-  public:
+struct _ComponentBuilder {
     template <class T, class... Args>
-    _Component(_Type<T>, Args&&... args) {
-        _constructor = [=]() {
-            return std::unique_ptr<Component>(
-                dynamic_cast<Component*>(new T(std::forward<const Args>(args)...)));
-        };
-    }
+    _ComponentBuilder(_Type<T>, Args... args)
+        : _constructor([=]() { return std::unique_ptr<Component>(dynamic_cast<Component*>(new T(args...))); }),
+          _class_name(TinycompoDebug::type<T>()) {}
 
     std::function<std::unique_ptr<Component>()> _constructor;  // stores the component constructor
+    std::string _class_name{""};
+};
+
+/*
+====================================================================================================
+  ~*~ key_to_string ~*~
+==================================================================================================*/
+template <class Key>
+std::string key_to_string(Key key) {
+    std::stringstream ss;
+    ss << key;
+    return ss.str();
+}
+
+/*
+====================================================================================================
+  ~*~ Addresses ~*~
+==================================================================================================*/
+class Address {
+    std::vector<std::string> keys;
+
+    template <class Arg>
+    void register_keys(Arg arg) {
+        keys.push_back(key_to_string(arg));
+    }
+
+    template <class Arg, class... Args>
+    void register_keys(Arg arg, Args... args) {
+        register_keys(arg);
+        register_keys(std::forward<Args>(args)...);
+    }
+
+  public:
+    template <class... Keys>
+    explicit Address(Keys... keys) {
+        register_keys(std::forward<Keys>(keys)...);
+    }
+
+    explicit Address(const std::vector<std::string>& v) : keys(v) {}
+
+    template <class Key>
+    Address(const Address& address, Key key) : keys(address.keys) {
+        keys.push_back(key_to_string(key));
+    }
+
+    std::string first() const { return keys.front(); }
+
+    Address rest() const {
+        std::vector<std::string> acc;
+        for (unsigned int i = 1; i < keys.size(); i++) {
+            acc.push_back(keys.at(i));
+        }
+        return Address(acc);
+    }
+
+    bool is_composite() const { return keys.size() > 1; }
+
+    std::string to_string() const {
+        return std::accumulate(keys.begin(), keys.end(), std::string(""),
+                               [this](std::string acc, std::string key) { return ((acc == "") ? "" : acc + "_") + key; });
+    }
+};
+
+struct PortAddress {
+    std::string prop;
+    Address address;
+
+    template <class... Keys>
+    PortAddress(const std::string& prop, Keys... keys) : prop(prop), address(std::forward<Keys>(keys)...) {}
 };
 
 /*
 ====================================================================================================
   ~*~ _Operation class ~*~
 ==================================================================================================*/
-template <class A, class Key>
-class _Operation {
-  public:
+struct _Operation {
     template <class Connector, class... Args>
-    _Operation(_Type<Connector>, Args&&... args)
-        : _connect([=](A& assembly) {
-              Connector::_connect(assembly, std::forward<const Args>(args)...);
-          }) {}
+    _Operation(_Type<Connector>, Args... args)
+        : _connect([=](Assembly& assembly) { Connector::_connect(assembly, args...); }) {}
 
-    template <class... Args>
-    _Operation(Key component, const std::string& prop, Args&&... args)
-        : _connect([=](A& assembly) {
-              assembly.at(component).set(prop, std::forward<const Args>(args)...);
-          }) {}
-
-    std::function<void(A&)> _connect;
+    std::function<void(Assembly&)> _connect;
 };
 
 /*
 ====================================================================================================
-  ~*~ Address ~*~
+  ~*~ Composite ~*~
 ==================================================================================================*/
-template <class Key, class... Keys>
-class _Address {
-  public:
-    const Key key;
-    const bool final{false};
-    const _Address<Keys...> rest;
-    // TODO need a conversion operator here?
-    _Address(Key key, Keys... keys) : key(key), rest(keys...) {}
+struct Composite {
+    static void contents(Model&) {}
 };
 
-template <class Key>
-class _Address<Key> {
-  public:
-    const Key key;
-    const bool final{true};
+/*
+====================================================================================================
+  ~*~ Graph representation classes ~*~
+  Small classes implementing a simple easily explorable graph representation for TinyCompo component
+  assemblies.
+==================================================================================================*/
+class _GraphAddress {
+    std::string address;
+    std::string port;
 
-    template <class T>
-    operator _Address<T>() {
-        return _Address<T>(key);
+    friend class _AssemblyGraph;
+
+  public:
+    _GraphAddress(const std::string& address, const std::string& port = "") : address(address), port(port) {}
+
+    void print(std::ostream& os = std::cout) const { os << "->" << address << ((port == "") ? "" : ("." + port)); }
+};
+
+struct _Node {
+    std::string name;
+    std::string type;
+    std::vector<_GraphAddress> neighbors;
+
+    void neighbors_from_args() {}
+
+    template <class Arg, class... Args>
+    void neighbors_from_args(Arg, Args... args) {
+        neighbors_from_args(args...);
     }
 
-    explicit _Address(Key key) : key(key) {}
+    template <class... Args>
+    void neighbors_from_args(const Address& arg, Args... args) {
+        neighbors.push_back(_GraphAddress(arg.to_string()));
+        neighbors_from_args(args...);
+    }
+
+    template <class... Args>
+    void neighbors_from_args(PortAddress arg, Args... args) {
+        neighbors.push_back(_GraphAddress(arg.address.to_string(), arg.prop));
+        neighbors_from_args(args...);
+    }
+
+    void print(std::ostream& os = std::cout, int tabs = 0) const {
+        os << std::string(tabs, '\t') << ((name == "") ? "Connector" : "Component \"" + name + "\"") << " (" << type << ") ";
+        for (auto& n : neighbors) {
+            n.print(os);
+            os << " ";
+        }
+        os << '\n';
+    }
 };
 
-template <class... Keys>
-_Address<Keys...> Address(Keys... keys) {
-    return _Address<Keys...>(keys...);
-}
+class _AssemblyGraph {
+    std::vector<_Node> components;
+    std::vector<_Node> connectors;
+    std::map<std::string, _AssemblyGraph&> composites;
+
+    friend class Model;
+
+    std::string strip(std::string s) const {
+        auto it = s.find('_');
+        return s.substr(++it);
+    }
+
+    bool is_composite(const std::string& address) const {
+        return std::accumulate(composites.begin(), composites.end(), false,
+                               [this, address](bool acc, std::pair<std::string, _AssemblyGraph&> ref) {
+                                   return acc || ref.second.is_composite(strip(address)) || (ref.first == address);
+                               });
+    }
+
+  public:
+    void to_dot(int tabs = 0, const std::string& name = "", std::ostream& os = std::cout) const {
+        std::string prefix = name + (name == "" ? "" : "_");
+        if (name == "") {  // toplevel
+            os << std::string(tabs, '\t') << "graph g {\n";
+        } else {
+            os << std::string(tabs, '\t') << "subgraph cluster_" << name << " {\n";
+        }
+        for (auto& c : components) {
+            os << std::string(tabs + 1, '\t') << prefix << c.name << " [label=\"" << c.name << "\\n(" << c.type
+               << ")\" shape=component margin=0.15];\n";
+        }
+        int i = 0;
+        for (auto& c : connectors) {
+            std::string cname = "connect_" + prefix + std::to_string(i);
+            os << std::string(tabs + 1, '\t') << cname << " [xlabel=\"" << c.type << "\" shape=point];\n";
+            for (auto& n : c.neighbors) {
+                os << std::string(tabs + 1, '\t') << cname << " -- "
+                   << (is_composite(n.address) ? "cluster_" + prefix + n.address : prefix + n.address)
+                   << (n.port == "" ? "" : "[xlabel=\"" + n.port + "\"]") << ";\n";
+            }
+            i++;
+        }
+        for (auto& c : composites) {
+            c.second.to_dot(tabs + 1, prefix + c.first, os);
+        }
+        os << std::string(tabs, '\t') << "}\n";
+    }
+
+    void print(std::ostream& os = std::cout, int tabs = 0) const {
+        for (auto& c : components) {
+            c.print(os, tabs);
+        }
+        for (auto& c : connectors) {
+            c.print(os, tabs);
+        }
+        for (auto& c : composites) {
+            os << std::string(tabs, '\t') << "Composite " << c.first << " {\n";
+            c.second.print(os, tabs + 1);
+            os << std::string(tabs, '\t') << "}\n";
+        }
+    }
+
+    std::vector<std::string> all_component_names(int depth = 0, const std::string& name = "") const {
+        std::string prefix = name + (name == "" ? "" : "_");
+        std::vector<std::string> result;
+        for (auto& c : components) {            // local components
+            result.push_back(prefix + c.name);  // stringified name
+        }
+        if (depth > 0) {
+            for (auto& c : composites) {  // names from composites until a certain depth
+                auto subresult = c.second.all_component_names(depth - 1, prefix + c.first);
+                result.insert(result.end(), subresult.begin(), subresult.end());
+            }
+        }
+        return result;
+    }
+};
 
 /*
 ====================================================================================================
   ~*~ Model ~*~
 ==================================================================================================*/
-template <class Key>
-class Assembly;  // forward-decl
-template <class Key>
-class Model;  // forward-decl
-
-class _AbstractComposite {  // inheritance-only class
-  public:
-    virtual ~_AbstractComposite() = default;
-};
-
-template <class Key>
-class Composite : public Model<Key>, public _AbstractComposite {};
-
-class _Composite {
-    std::unique_ptr<_AbstractComposite> ptr;
-    std::function<_AbstractComposite*()> _clone;
-
-  public:
-    std::function<Component*()> _constructor;
-
-    _Composite() = delete;
-
-    template <class T, class... Args>
-    explicit _Composite(_Type<T>, Args&&... args)
-        : ptr(std::unique_ptr<_AbstractComposite>(new T(std::forward<Args>(args)...))),
-          _clone([=]() {
-              return static_cast<_AbstractComposite*>(new T(dynamic_cast<T&>(*ptr.get())));
-          }),
-          _constructor([=]() {
-              return static_cast<Component*>(
-                  new Assembly<typename T::KeyType>(dynamic_cast<T&>(*ptr.get())));
-          }) {}
-
-    _Composite(const _Composite& other)
-        : ptr(other._clone()), _clone(other._clone), _constructor(other._constructor) {}
-
-    _AbstractComposite* get() { return ptr.get(); }
-};
-
-template <class Key = const char*>
 class Model {
-    using _InstanceType = int;
+    friend class Assembly;  // to access internal data
 
-    template <class T, bool b>
-    struct _Helper {
-        template <class... Args>
-        static void declare(Model<Key>& model, Args&&... args) {
-            model.component<T>(std::forward<Args>(args)...);
-        }
-    };
+  protected:
+    std::map<std::string, _ComponentBuilder> components;
+    std::vector<_Operation> operations;
+    std::map<std::string, Model> composites;
 
-    template <class T>
-    struct _Helper<T, true> {
-        template <class... Args>
-        static void declare(Model<Key>& model, Args&&... args) {
-            model.composite<T>(std::forward<Args>(args)...);
-        }
-    };
+    _AssemblyGraph representation;
 
   public:
-    using KeyType = Key;
-
-    std::map<Key, _Component> components;
-    std::vector<_Operation<Assembly<Key>, Key>> operations;
-    std::map<Key, _Composite> composites;
-
     Model() = default;
 
-    void merge(const Model& newData) {
-        components.insert(newData.components.begin(), newData.components.end());
-        operations.insert(operations.end(), newData.operations.begin(), newData.operations.end());
-        composites.insert(composites.end(), newData.composites.begin(), newData.composites.end());
+    template <class T, class... Args>
+    Model(_Type<T>, Args... args) {
+        T::contents(*this, std::forward<Args>(args)...);
     }
 
-    template <bool isComposite, class T, class Key1, class... Args>
-    void _route(_Address<Key1> address, Args&&... args) {
-        _Helper<T, isComposite>::declare(*this, address.key, std::forward<Args>(args)...);
+    Model(const Model& other_model)
+        : components(other_model.components),
+          operations(other_model.operations),
+          composites(other_model.composites),
+          representation(other_model.representation) {
+        representation.composites.clear();  // rebuild composite map in representation from scratch
+        for (auto& c : composites) {
+            representation.composites.emplace(std::piecewise_construct, std::forward_as_tuple(c.first),
+                                              std::forward_as_tuple(c.second.get_representation()));
+        }
     }
 
-    template <bool isComposite, class T, class Key1, class Key2, class... Keys, class... Args>
-    void _route(_Address<Key1, Key2, Keys...> address, Args&&... args) {
-        auto compositeIt = composites.find(address.key);
-        if (compositeIt != composites.end()) {
-            auto ptr = dynamic_cast<Model<Key2>*>(compositeIt->second.get());
-            if (ptr == nullptr) {
-                TinycompoDebug e("key type does not match composite key type");
-                e << "Key has type " << TinycompoDebug::type<Key2>() << " while composite "
-                  << address.key << " seems to have another key type.";
-                e.fail();
-            }
-            ptr->template _route<isComposite, T>(address.rest, std::forward<Args>(args)...);
+    template <class T, class... Args>
+    void component(const Address& address, Args&&... args) {
+        if (!address.is_composite()) {
+            component<T>(address.first(), std::forward<Args>(args)...);
         } else {
-            TinycompoDebug e("composite does not exist");
-            e << "Assembly contains no composite at address " << address.key << '.';
-            e.fail();
+            get_composite(address.first()).component<T>(address.rest(), std::forward<Args>(args)...);
         }
     }
 
-    template <class T, class... Args>
-    void component(Key address, Args&&... args) {
+    // horrible enable_if to avoid ambiguous call with version below
+    template <class T, class CallKey, class... Args,
+              typename = typename std::enable_if<!std::is_same<CallKey, Address>::value>::type>
+    void component(CallKey key, Args&&... args) {
         if (!std::is_base_of<Component, T>::value) {
-            TinycompoDebug("trying to declare a component that does not inherit from Component")
-                .fail();
+            TinycompoDebug("trying to declare a component that does not inherit from Component").fail();
         }
-        components.emplace(std::piecewise_construct, std::forward_as_tuple(address),
+        std::string key_name = key_to_string(key);
+        components.emplace(std::piecewise_construct, std::forward_as_tuple(key_name),
                            std::forward_as_tuple(_Type<T>(), std::forward<Args>(args)...));
+
+        representation.components.push_back(_Node());
+        representation.components.back().name = key_name;
+        representation.components.back().type = TinycompoDebug::type<T>();
     }
 
-    template <class T, class Key1, class Key2, class... Keys, class... Args>
-    void component(_Address<Key1, Key2, Keys...> address, Args&&... args) {
-        _route<false, T>(address, std::forward<Args>(args)...);
+    template <class T = Composite, class... Args>
+    void composite(const Address& address, Args&&... args) {
+        if (!address.is_composite()) {
+            composite<T>(address.first(), std::forward<Args>(args)...);
+        } else {
+            get_composite(address.first()).composite<T>(address.rest(), std::forward<Args...>(args)...);
+        }
     }
 
-    template <class T, class... Args>
-    void composite(Key key, Args&&... args) {
-        composites.emplace(std::piecewise_construct, std::forward_as_tuple(key),
+    template <class T = Composite, class CallKey, class... Args,
+              typename = typename std::enable_if<!std::is_same<CallKey, Address>::value>::type>
+    void composite(CallKey key, Args&&... args) {
+        std::string key_name = key_to_string(key);
+
+        composites.emplace(std::piecewise_construct, std::forward_as_tuple(key_name),
                            std::forward_as_tuple(_Type<T>(), std::forward<Args>(args)...));
+
+        representation.composites.emplace(std::piecewise_construct, std::forward_as_tuple(key_name),
+                                          std::forward_as_tuple(composites.at(key_name).get_representation()));
     }
 
-    template <class T, class... Keys, class... Args>
-    void composite(_Address<Keys...> address, Args&&... args) {
-        _route<true, T>(address, args...);
-    }
-
-    template <class CompositeType>
-    CompositeType& compositeRef(const Key& address) {
-        auto compositeIt = composites.find(address);
-        return dynamic_cast<CompositeType&>(*compositeIt->second.get());
+    template <class Key>
+    Model& get_composite(const Key& key) {
+        std::string key_name = key_to_string(key);
+        auto compositeIt = composites.find(key_name);
+        return dynamic_cast<Model&>(compositeIt->second);
     }
 
     template <class C, class... Args>
     void connect(Args&&... args) {
-        operations.emplace_back(_Type<C>(), std::forward<Args>(args)...);
+        operations.emplace_back(_Type<C>(), args...);
+
+        representation.connectors.push_back(_Node());
+        representation.connectors.back().type = TinycompoDebug::type<C>();
+        representation.connectors.back().neighbors_from_args(args...);
     }
 
     std::size_t size() const { return components.size() + composites.size(); }
+
+    void dot(std::ostream& stream = std::cout) const { representation.to_dot(0, "", stream); }
+
+    void dot_to_file(const std::string& fileName = "tmp.dot") const {
+        std::ofstream file;
+        file.open(fileName);
+        dot(file);
+    }
+
+    void print_representation(std::ostream& os = std::cout, int tabs = 0) const { representation.print(os, tabs); }
+
+    const _AssemblyGraph& get_representation() const { return representation; }
+    _AssemblyGraph& get_representation() { return representation; }
 };
 
 /*
 ====================================================================================================
   ~*~ Assembly class ~*~
 ==================================================================================================*/
-template <class Key = const char*>
 class Assembly : public Component {
-  protected:
-    std::map<Key, std::unique_ptr<Component>> instances;
-    Model<Key>& internal_model;
+  protected:  // used in mpi example
+    std::map<std::string, std::unique_ptr<Component>> instances;
+    Model internal_model;
 
   public:
     Assembly() = delete;
-    explicit Assembly(Model<Key>& model) : internal_model(model) {
+    explicit Assembly(Model& model, const std::string& name = "") : internal_model(model) {
+        set_name(name);
         for (auto& c : model.components) {
             instances.emplace(c.first, std::unique_ptr<Component>(c.second._constructor()));
+            std::stringstream ss;
+            ss << get_name() << ((get_name() != "") ? "_" : "") << c.first;
+            instances.at(c.first).get()->set_name(ss.str());
         }
         for (auto& c : model.composites) {
-            instances.emplace(c.first, std::unique_ptr<Component>(c.second._constructor()));
+            std::stringstream ss;
+            ss << get_name() << ((get_name() != "") ? "_" : "") << c.first;
+            instances.emplace(c.first, std::unique_ptr<Component>(new Assembly(c.second, c.first)));
         }
         for (auto& o : model.operations) {
             o._connect(*this);
@@ -418,22 +590,36 @@ class Assembly : public Component {
 
     std::size_t size() const { return instances.size(); }
 
+    bool is_composite(const Address& address) const {
+        auto ptr = dynamic_cast<Assembly*>(&at(address));
+        return ptr != nullptr;
+    }
+
+    template <class T = Component, class Key>
+    T& at(Key key) const {
+        std::string key_name = key_to_string(key);
+        try {
+            return dynamic_cast<T&>(*(instances.at(key_name).get()));
+        } catch (std::out_of_range) {
+            TinycompoDebug e{"<Assembly::at> Trying to access incorrect address"};
+            e << "Address " << key_name << " does not exist. Existing addresses are:\n";
+            for (auto& key : instances) {
+                e << "  * " << key.first << "\n";
+            }
+            e.fail();
+        }
+    }
+
     template <class T = Component>
-    T& at(Key address) const {
-        return dynamic_cast<T&>(*(instances.at(address).get()));
+    T& at(const Address& address) const {
+        if (!address.is_composite()) {
+            return at<T>(address.first());
+        } else {
+            return at<Assembly>(address.first()).template at<T>(address.rest());
+        }
     }
 
-    template <class T = Component, class Key1 = bool>
-    T& at(const _Address<Key>& address) const {
-        return at<T>(address.key);
-    }
-
-    template <class T = Component, class Key1 = bool, class Key2 = bool, class... Keys>
-    T& at(const _Address<Key1, Key2, Keys...>& address) const {
-        return at<Assembly<Key2>>(address.key).template at<T>(address.rest);
-    }
-
-    Model<Key>& model() const { return internal_model; }
+    const Model& model() const { return internal_model; }
 
     void print_all(std::ostream& os = std::cout) const {
         for (auto& i : instances) {
@@ -441,29 +627,77 @@ class Assembly : public Component {
         }
     }
 
+    std::set<std::string> all_keys() const {
+        std::set<std::string> result;
+        for (auto& c : instances) {
+            result.insert(c.first);
+        }
+        return result;
+    }
+
     template <class... Args>
-    void call(const char* compo, const std::string& prop, Args... args) const {
+    void call(const std::string& compo, const std::string& prop, Args... args) const {
         at(compo).set(prop, std::forward<Args>(args)...);
     }
 };
 
 /*
 ====================================================================================================
-  ~*~ UseProvide class ~*~
+  ~*~ Set class ~*~
+==================================================================================================*/
+struct Set {
+    template <class... Args>
+    static void _connect(Assembly& assembly, PortAddress component, Args... args) {
+        assembly.at(component.address).set(component.prop, std::forward<Args>(args)...);
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ Use class ~*~
   UseProvide is a "connector class", ie a functor that can be passed as template parameter to
   Assembly::connect. This particular connector implements the "use/provide" connection, ie setting a
   port of one component (the user) to a pointer to an interface of another (the provider). This
   class should be used as-is to declare assembly connections.
 ==================================================================================================*/
 template <class Interface>
-class UseProvide {
-  public:
-    template <class Key, class... Keys, class... Keys2>
-    static void _connect(Assembly<Key>& assembly, _Address<Keys...> user, std::string userPort,
-                         _Address<Keys2...> provider) {
-        auto& refUser = assembly.at(user);
-        auto& refProvider = assembly.template at<Interface>(provider);
-        refUser.set(userPort, &refProvider);
+struct Use {
+    static void _connect(Assembly& assembly, PortAddress user, Address provider) {
+        auto& ref_user = assembly.at(user.address);
+        auto& ref_provider = assembly.template at<Interface>(provider);
+        ref_user.set(user.prop, &ref_provider);
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ ListUse class ~*~
+==================================================================================================*/
+template <class Interface>
+struct ListUse {  // TODO de-templatify
+    template <class UserAddress, class ProviderAddress>
+    static void _connect(Assembly& assembly, UserAddress user, ProviderAddress provider) {
+        Use<Interface>::_connect(assembly, user, provider);
+    }
+
+    template <class UserAddress, class ProviderAddress, class... OtherProviderAddresses>
+    static void _connect(Assembly& assembly, UserAddress user, ProviderAddress provider,
+                         OtherProviderAddresses... other_providers) {
+        _connect(assembly, user, provider);
+        _connect(assembly, user, std::forward<OtherProviderAddresses>(other_providers)...);
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ UseProvide class ~*~
+==================================================================================================*/
+template <class Interface>
+struct UseProvide {
+    static void _connect(Assembly& assembly, PortAddress user, PortAddress provider) {
+        auto& ref_user = assembly.at(user.address);
+        auto& ref_provider = assembly.at(provider.address);
+        ref_user.set(user.prop, ref_provider.template get<Interface>(provider.prop));
     }
 };
 
@@ -472,16 +706,28 @@ class UseProvide {
   ~*~ Array class ~*~
 ==================================================================================================*/
 template <class T>
-class Array : public Composite<int> {
-  public:
+struct Array : public Composite {
     template <class... Args>
-    explicit Array(int nbElems, Args... args) {
-        for (int i = 0; i < nbElems; i++) {
-            component<T>(i, std::forward<Args>(args)...);
+    static void contents(Model& model, int nb_elems, Args... args) {
+        for (int i = 0; i < nb_elems; i++) {
+            model.component<T>(i, std::forward<Args>(args)...);
         }
     }
 };
 
+/*
+====================================================================================================
+  ~*~ ArraySet class ~*~
+==================================================================================================*/
+struct ArraySet {
+    template <class... Keys, class Data>
+    static void _connect(Assembly& assembly, PortAddress array, const std::vector<Data>& data) {
+        auto& arrayRef = assembly.template at<Assembly>(array.address);
+        for (int i = 0; i < static_cast<int>(arrayRef.size()); i++) {
+            arrayRef.at(i).set(array.prop, data.at(i));
+        }
+    }
+};
 /*
 ====================================================================================================
   ~*~ ArrayOneToOne class ~*~
@@ -491,19 +737,18 @@ class Array : public Composite<int> {
   Assembly::connect.
 ==================================================================================================*/
 template <class Interface>
-class ArrayOneToOne {
-  public:
-    static void _connect(Assembly<>& a, const char* array1, std::string prop, const char* array2) {
-        auto& ref1 = a.at<Assembly<int>>(array1);
-        auto& ref2 = a.at<Assembly<int>>(array2);
+struct ArrayOneToOne {
+    static void _connect(Assembly& a, PortAddress array1, Address array2) {
+        auto& ref1 = a.at<Assembly>(array1.address);
+        auto& ref2 = a.at<Assembly>(array2);
         if (ref1.size() == ref2.size()) {
             for (int i = 0; i < static_cast<int>(ref1.size()); i++) {
                 auto ptr = dynamic_cast<Interface*>(&ref2.at(i));
-                ref1.at(i).set(prop, ptr);
+                ref1.at(i).set(array1.prop, ptr);
             }
         } else {
             TinycompoDebug e{"Array connection: mismatched sizes"};
-            e << array1 << " has size " << ref1.size() << " while " << array2 << " has size "
+            e << array1.address.to_string() << " has size " << ref1.size() << " while " << array2.to_string() << " has size "
               << ref2.size() << ".";
             e.fail();
         }
@@ -519,14 +764,13 @@ reducer is the user in multiple use/provide connections). This class should be u
 parameter for Assembly::connect.
 ==================================================================================================*/
 template <class Interface>
-class MultiUse {
-  public:
-    static void _connect(Assembly<>& a, const char* reducer, std::string prop, const char* array) {
-        auto& ref1 = a.at<Component>(reducer);
-        auto& ref2 = a.at<Assembly<int>>(array);
+struct MultiUse {
+    static void _connect(Assembly& a, PortAddress reducer, Address array) {
+        auto& ref1 = a.at<Component>(reducer.address);
+        auto& ref2 = a.at<Assembly>(array);
         for (int i = 0; i < static_cast<int>(ref2.size()); i++) {
             auto ptr = dynamic_cast<Interface*>(&ref2.at(i));
-            ref1.set(prop, ptr);
+            ref1.set(reducer.prop, ptr);
         }
     }
 };
@@ -536,71 +780,14 @@ class MultiUse {
   ~*~ MultiProvide class ~*~
 ==================================================================================================*/
 template <class Interface>
-class MultiProvide {
-  public:
-    static void _connect(Assembly<>& a, const char* array, std::string prop, const char* mapper) {
-        for (int i = 0; i < static_cast<int>(a.at<Assembly<int>>(array).size()); i++) {
-            a.at(Address(array, i)).set(prop, &a.at<Interface>(mapper));
-        }
-    }
-};
-
-/*
-====================================================================================================
-  ~*~ Tree ~*~
-  A special composite whose internal components form a tree.
-==================================================================================================*/
-using TreeRef = int;
-
-class Tree : public Composite<TreeRef> {
-    std::vector<TreeRef> parent;
-    std::vector<std::vector<TreeRef>> children;
-
-  public:
-    template <class T, class... Args>
-    TreeRef addRoot(Args&&... args) {
-        if (size() != 0) {
-            TinycompoDebug("trying to add root to non-empty Tree.").fail();
-        } else {
-            component<T>(0, std::forward<Args>(args)...);
-            children.emplace_back();  // empty children list for root
-            parent.push_back(-1);     // root has no parents :'(
-            return 0;
-        }
-    }
-
-    template <class T, class... Args>
-    TreeRef addChild(TreeRef refParent, Args&&... args) {
-        auto nodeRef = parent.size();
-        component<T>(nodeRef, std::forward<Args>(args)...);
-        parent.push_back(refParent);
-        children.emplace_back();  // empty children list for newly added node
-        children.at(refParent).push_back(nodeRef);
-        return nodeRef;
-    }
-
-    TreeRef getParent(TreeRef refChild) { return parent.at(refChild); }
-
-    const std::vector<TreeRef>& getChildren(TreeRef refParent) { return children.at(refParent); }
-};
-
-/*
-====================================================================================================
-  ~*~ ToChildren ~*~
-  A tree connector that connects every node to its children.
-==================================================================================================*/
-template <class Interface, class Key = const char*>
-class ToChildren {
-  public:
-    static void _connect(Assembly<>& a, Key tree, std::string prop) {
-        auto& treeRef = a.at<Assembly<TreeRef>>(tree);
-        auto& treeModelRef = a.model().compositeRef<Tree>(tree);
-        for (auto i = 0; i < static_cast<int>(treeRef.size()); i++) {  // for each node...
-            auto& nodeRef = treeRef.at(i);
-            auto& children = treeModelRef.getChildren(i);
-            for (auto j : children) {  // for every one of its children...
-                nodeRef.set(prop, &treeRef.template at<Interface>(j));
+struct MultiProvide {
+    static void _connect(Assembly& a, PortAddress array, Address mapper) {
+        try {
+            for (int i = 0; i < static_cast<int>(a.at<Assembly>(array.address).size()); i++) {
+                a.at(Address(array.address, i)).set(array.prop, &a.at<Interface>(mapper));
             }
+        } catch (...) {
+            TinycompoDebug("<MultiProvide::_connect> There was an error while trying to connect components.").fail();
         }
     }
 };
