@@ -40,10 +40,28 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     sf::VertexArray array;
     Map *map{nullptr};
 
-    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const final {
         states.transform *= getTransform();
         states.texture = &tileset;
         target.draw(array, states);
+    }
+
+    // x, y = coords of top left angle
+    void draw_tile(int index, int type, int x, int y) {
+        int size_y = 123, size_x = 133;  // tile size
+        int hd = 100;
+        int vd = 85;
+        int shift = (y%2 == 0) ? 50 : 0;
+
+        sf::Vertex *quad = &array[index * 4];
+        quad[0].position = sf::Vector2f(shift + x * hd, y * vd);
+        quad[1].position = sf::Vector2f(shift + x * hd + size_x, y * vd);
+        quad[2].position = sf::Vector2f(shift + x * hd + size_x, y * vd + size_y);
+        quad[3].position = sf::Vector2f(shift + x * hd, y * vd + size_y);
+        quad[0].texCoords = sf::Vector2f(0, type * size_y);
+        quad[1].texCoords = sf::Vector2f(size_x, type * size_y);
+        quad[2].texCoords = sf::Vector2f(size_x, (type + 1) * size_y);
+        quad[3].texCoords = sf::Vector2f(0, (type + 1) * size_y);
     }
 
   public:
@@ -61,20 +79,11 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
         // map->print();
 
-        for (auto x = 0; x < size_x; x++) {
-            for (auto y = 0; y < size_y; y++) {
-
+        for (size_t x = 0; x < size_x; x++) {
+            for (size_t y = 0; y < size_y; y++) {
                 auto index = x * map->size_y + y;
                 auto type = map->get().at(x).at(y);
-                sf::Vertex *quad = &array[index * 4];
-                quad[0].position = sf::Vector2f(x * tile_size, y * tile_size);
-                quad[1].position = sf::Vector2f((x + 1) * tile_size, y * tile_size);
-                quad[2].position = sf::Vector2f((x + 1) * tile_size, (y + 1) * tile_size);
-                quad[3].position = sf::Vector2f(x * tile_size, (y + 1) * tile_size);
-                quad[0].texCoords = sf::Vector2f(type * tile_size, 0);
-                quad[1].texCoords = sf::Vector2f((type + 1) * tile_size, 0);
-                quad[2].texCoords = sf::Vector2f((type + 1) * tile_size, tile_size);
-                quad[3].texCoords = sf::Vector2f(type * tile_size, tile_size);
+                draw_tile(index, type, x, y);
             }
         }
     }
@@ -94,7 +103,9 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        sf::RenderWindow window(sf::VideoMode(map->size_x * tilemap->tile_size, map->size_y * tilemap->tile_size), "Test");
+        sf::RenderWindow window(
+            sf::VideoMode(map->size_x * tilemap->tile_size, map->size_y * tilemap->tile_size),
+            "Test");
         window.setFramerateLimit(30);
 
         tilemap->load();
@@ -116,8 +127,8 @@ int main() {
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
-    model.component<Map>("map", vector<int>{0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 1, 0, 2,
-                                            0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0},
+    model.component<Map>(
+        "map", vector<int>{0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 1, 0, 2, 0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0},
         6, 4);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
