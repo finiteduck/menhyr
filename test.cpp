@@ -51,7 +51,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
         int size_y = 250, size_x = 269;  // tile size
         int hd = 196;
         int vd = 167;
-        int shift = (y%2 == 0) ? 98 : 0;
+        int shift = (y % 2 == 0) ? 98 : 0;
 
         sf::Vertex *quad = &array[index * 4];
         quad[0].position = sf::Vector2f(shift + x * hd, y * vd);
@@ -72,7 +72,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     void load() {
         size_t size_x = map->size_x, size_y = map->size_y;
 
-        tileset.loadFromFile("tileset.png");
+        tileset.loadFromFile("alltiles.png");
         array.setPrimitiveType(sf::Quads);
         array.resize(4 * size_x * size_y);
         // cout << "size x is " << size_x << " and size y is " << size_y << endl;
@@ -124,12 +124,15 @@ class MainLoop : public Component {
 };
 
 int main() {
+    vector<int> tile_map;
+    for (int i = 0; i < 24; i++) {
+        tile_map.push_back(rand() % 4);
+    }
+
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
-    model.component<Map>(
-        "map", vector<int>{0, 0, 0, 1, 0, 0, 1, 1, 0, 2, 1, 0, 2, 0, 0, 1, 1, 0, 0, 0, 2, 1, 1, 0},
-        6, 4);
+    model.component<Map>("map", tile_map, 6, 4);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
     model.connect<Use<Map>>(PortAddress("map", "mainloop"), Address("map"));
