@@ -48,10 +48,13 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
     // x, y = coords of top left angle
     void draw_tile(int index, int type, int x, int y) {
-        int size_y = 250, size_x = 269;  // tile size
-        int hd = 196;
-        int vd = 167;
-        int shift = (y % 2 == 0) ? 98 : 0;
+        int size_y = 193, size_x = 258;  // tile size
+        int w = 150;                     // hexagon width (distance between parallel edges)
+        int overlap = 4;
+
+        int hd = w - overlap;
+        int vd = hd * sqrt(3) /2;
+        int shift = (y % 2 == 0) ? (hd / 2) : 0;
 
         sf::Vertex *quad = &array[index * 4];
         quad[0].position = sf::Vector2f(shift + x * hd, y * vd);
@@ -128,7 +131,7 @@ int main() {
 
     vector<int> tile_map;
     for (int i = 0; i < 24; i++) {
-        tile_map.push_back(rand() % 4);
+        tile_map.push_back(rand() % 3);
     }
 
     Model model;
