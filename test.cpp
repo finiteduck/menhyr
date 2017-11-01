@@ -50,10 +50,10 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     void draw_tile(int index, int type, int x, int y) {
         int size_y = 193, size_x = 258;  // tile size
         int w = 150;                     // hexagon width (distance between parallel edges)
-        int overlap = 4;
+        int overlap = 6;
 
         int hd = w - overlap;
-        int vd = hd * sqrt(3) /2;
+        int vd = hd * sqrt(3) / 2;
         int shift = (y % 2 == 0) ? (hd / 2) : 0;
 
         sf::Vertex *quad = &array[index * 4];
@@ -68,7 +68,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     }
 
   public:
-    int tile_size{200};
+    int tile_size{150};
 
     TileMap() { port("map", &TileMap::map); }
 
@@ -130,14 +130,14 @@ int main() {
     srand(time(NULL));
 
     vector<int> tile_map;
-    for (int i = 0; i < 24; i++) {
-        tile_map.push_back(rand() % 3);
+    for (int i = 0; i < 50; i++) {
+        tile_map.push_back(rand() % 4);
     }
 
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
-    model.component<Map>("map", tile_map, 6, 4);
+    model.component<Map>("map", tile_map, 10, 5);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
     model.connect<Use<Map>>(PortAddress("map", "mainloop"), Address("map"));
