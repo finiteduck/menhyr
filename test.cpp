@@ -131,7 +131,7 @@ int main() {
 
     vector<int> tile_map;
     for (int i = 0; i < 50; i++) {
-        tile_map.push_back(rand() % 4);
+        tile_map.push_back(rand() % 5);
     }
 
     Model model;
