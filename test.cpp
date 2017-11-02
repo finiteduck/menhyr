@@ -79,9 +79,6 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
         tileset.loadFromFile("alltiles.png");
         array.setPrimitiveType(sf::Quads);
         array.resize(4 * size_x * size_y);
-        // cout << "size x is " << size_x << " and size y is " << size_y << endl;
-
-        // map->print();
 
         for (size_t y = 0; y < size_y; y++) {
             for (size_t x = 0; x < size_x; x++) {
@@ -128,9 +125,9 @@ int main() {
 
     vector<int> tile_map;
     for (int i = 0; i < 100; i++) {
-        tile_map.push_back(rand() % 4);
+        tile_map.push_back(rand() % 7);
     }
-    tile_map[44] = 4;
+    tile_map[44] = 7;
 
     Model model;
     model.component<MainLoop>("mainloop");
