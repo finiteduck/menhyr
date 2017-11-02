@@ -47,20 +47,21 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     }
 
     // x, y = coords of top left angle
-    void draw_tile(int index, int type, int x, int y) {
+    void draw_tile(int index, int type, int x, int y, int shiftx = 0, int shifty = 0) {
         int size_y = 193, size_x = 258;  // tile size
         int w = 150;                     // hexagon width (distance between parallel edges)
         int overlap = 6;
 
         int hd = w - overlap;
         int vd = hd * sqrt(3) / 2;
-        int shift = (y % 2 == 0) ? (hd / 2) : 0;
+        int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
 
         sf::Vertex *quad = &array[index * 4];
-        quad[0].position = sf::Vector2f(shift + x * hd, y * vd);
-        quad[1].position = sf::Vector2f(shift + x * hd + size_x, y * vd);
-        quad[2].position = sf::Vector2f(shift + x * hd + size_x, y * vd + size_y);
-        quad[3].position = sf::Vector2f(shift + x * hd, y * vd + size_y);
+        quad[0].position = sf::Vector2f(shiftx + shift_hexa + x * hd, shifty + y * vd);
+        quad[1].position = sf::Vector2f(shiftx + shift_hexa + x * hd + size_x, shifty + y * vd);
+        quad[2].position =
+            sf::Vector2f(shiftx + shift_hexa + x * hd + size_x, shifty + y * vd + size_y);
+        quad[3].position = sf::Vector2f(shiftx + shift_hexa + x * hd, shifty + y * vd + size_y);
         quad[0].texCoords = sf::Vector2f(0, type * size_y);
         quad[1].texCoords = sf::Vector2f(size_x, type * size_y);
         quad[2].texCoords = sf::Vector2f(size_x, (type + 1) * size_y);
@@ -82,11 +83,11 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
         // map->print();
 
-        for (size_t x = 0; x < size_x; x++) {
-            for (size_t y = 0; y < size_y; y++) {
+        for (size_t y = 0; y < size_y; y++) {
+            for (size_t x = 0; x < size_x; x++) {
                 auto index = x * map->size_y + y;
                 auto type = map->get().at(x).at(y);
-                draw_tile(index, type, x, y);
+                draw_tile(index, type, x, y, -180, -180);
             }
         }
     }
@@ -106,9 +107,7 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        sf::RenderWindow window(
-            sf::VideoMode(map->size_x * tilemap->tile_size, map->size_y * tilemap->tile_size),
-            "Test");
+        sf::RenderWindow window(sf::VideoMode(1024, 768), "Test");
         window.setFramerateLimit(30);
 
         tilemap->load();
@@ -130,14 +129,15 @@ int main() {
     srand(time(NULL));
 
     vector<int> tile_map;
-    for (int i = 0; i < 50; i++) {
-        tile_map.push_back(rand() % 5);
+    for (int i = 0; i < 100; i++) {
+        tile_map.push_back(rand() % 4);
     }
+    tile_map[44] = 4;
 
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
-    model.component<Map>("map", tile_map, 10, 5);
+    model.component<Map>("map", tile_map, 10, 10);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
     model.connect<Use<Map>>(PortAddress("map", "mainloop"), Address("map"));
