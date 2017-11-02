@@ -6,6 +6,7 @@ using namespace std;
 
 using int_matrix = vector<vector<int>>;
 
+// Game-only object that stores a matrix of tile types
 class Map : public Component {
     int_matrix mat;
 
@@ -35,6 +36,7 @@ class Map : public Component {
     }
 };
 
+// Graphics-related object
 class TileMap : public sf::Drawable, public sf::Transformable, public Component {
     sf::Texture tileset;
     sf::VertexArray array;
@@ -47,7 +49,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     }
 
     // x, y = coords of top left angle
-    void draw_tile(int index, int type, int x, int y, int shiftx = 0, int shifty = 0) {
+    void draw_tile(int index, int type, int x, int y) {
         int size_y = 193, size_x = 258;  // tile size
         int w = 150;                     // hexagon width (distance between parallel edges)
         int overlap = 6;
@@ -57,11 +59,11 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
         int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
 
         sf::Vertex *quad = &array[index * 4];
-        quad[0].position = sf::Vector2f(shiftx + shift_hexa + x * hd, shifty + y * vd);
-        quad[1].position = sf::Vector2f(shiftx + shift_hexa + x * hd + size_x, shifty + y * vd);
+        quad[0].position = sf::Vector2f(offset_x + shift_hexa + x * hd, offset_y + y * vd);
+        quad[1].position = sf::Vector2f(offset_x + shift_hexa + x * hd + size_x, offset_y + y * vd);
         quad[2].position =
-            sf::Vector2f(shiftx + shift_hexa + x * hd + size_x, shifty + y * vd + size_y);
-        quad[3].position = sf::Vector2f(shiftx + shift_hexa + x * hd, shifty + y * vd + size_y);
+            sf::Vector2f(offset_x + shift_hexa + x * hd + size_x, offset_y + y * vd + size_y);
+        quad[3].position = sf::Vector2f(offset_x + shift_hexa + x * hd, offset_y + y * vd + size_y);
         quad[0].texCoords = sf::Vector2f(0, type * size_y);
         quad[1].texCoords = sf::Vector2f(size_x, type * size_y);
         quad[2].texCoords = sf::Vector2f(size_x, (type + 1) * size_y);
@@ -70,6 +72,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
   public:
     int tile_size{150};
+    int offset_x{-200}, offset_y{-200};
 
     TileMap() { port("map", &TileMap::map); }
 
@@ -84,7 +87,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
             for (size_t x = 0; x < size_x; x++) {
                 auto index = x * map->size_y + y;
                 auto type = map->get().at(x).at(y);
-                draw_tile(index, type, x, y, -180, -180);
+                draw_tile(index, type, x, y);
             }
         }
     }
@@ -92,6 +95,8 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
 class MainLoop : public Component {
     TileMap *tilemap{nullptr};
+    bool mouse_pressed{false};
+    int mouse_x{0}, mouse_y{0};
 
   public:
     MainLoop() {
@@ -103,7 +108,7 @@ class MainLoop : public Component {
 
     void go() {
         sf::RenderWindow window(sf::VideoMode(1024, 768), "Test");
-        window.setFramerateLimit(30);
+        // window.setFramerateLimit(30);
 
         tilemap->load();
 
@@ -111,6 +116,24 @@ class MainLoop : public Component {
             sf::Event event;
             while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed) window.close();
+
+                // mouse scrolling
+                else if (event.type == sf::Event::MouseButtonPressed and
+                         event.mouseButton.button == sf::Mouse::Left) {
+                    mouse_pressed = true;
+                    mouse_x = event.mouseButton.x;
+                    mouse_y = event.mouseButton.y;
+                } else if (event.type == sf::Event::MouseButtonReleased and
+                           event.mouseButton.button == sf::Mouse::Left) {
+                    mouse_pressed = false;
+                }
+            }
+            if (mouse_pressed) {
+                tilemap->offset_x += sf::Mouse::getPosition(window).x - mouse_x;
+                tilemap->offset_y += sf::Mouse::getPosition(window).y - mouse_y;
+                mouse_x = sf::Mouse::getPosition(window).x;
+                mouse_y = sf::Mouse::getPosition(window).y;
+                tilemap->load();
             }
 
             window.clear();
@@ -123,12 +146,14 @@ class MainLoop : public Component {
 int main() {
     srand(time(NULL));
 
+    // Initializing tile map with random tiles + fixed menhir
     vector<int> tile_map;
     for (int i = 0; i < 100; i++) {
         tile_map.push_back(rand() % 7);
     }
     tile_map[44] = 7;
 
+    // Declaring component assembly
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
@@ -136,6 +161,7 @@ int main() {
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
+    // Instantiating + calling main loop
     Assembly assembly(model);
     assembly.call("mainloop", "go");
 }
