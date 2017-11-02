@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <SFML/Graphics.hpp>
+#include <chrono>
 #include "tinycompo.hpp"
 
 using namespace std;
@@ -107,10 +108,14 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        sf::RenderWindow window(sf::VideoMode(1024, 768), "Test");
-        // window.setFramerateLimit(30);
+        sf::RenderWindow window(sf::VideoMode(800, 600), "Test");
+        // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
+        window.setFramerateLimit(60);
 
         tilemap->load();
+
+        int loops{0};
+        auto start = chrono::system_clock::now();
 
         while (window.isOpen()) {
             sf::Event event;
@@ -136,6 +141,15 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
+            cout << "." << flush;
+            loops++;
+            if (loops == 30) {
+                cout << chrono::duration<double>(chrono::system_clock::now() - start).count()
+                     << "s\n";
+                loops = 0;
+                start = chrono::system_clock::now();
+            }
+
             sf::CircleShape hexagon(75, 6);
             // hexagon.setRotation(90);
             hexagon.setPosition(400, 100);
@@ -156,16 +170,16 @@ int main() {
 
     // Initializing tile map with random tiles + fixed menhir
     vector<int> tile_map;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 300; i++) {
         tile_map.push_back(rand() % 7);
     }
-    tile_map[44] = 7;
+    tile_map[156] = 7;
 
     // Declaring component assembly
     Model model;
     model.component<MainLoop>("mainloop");
     model.component<TileMap>("tilemap");
-    model.component<Map>("map", tile_map, 10, 10);
+    model.component<Map>("map", tile_map, 20, 15);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
