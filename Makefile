@@ -14,5 +14,8 @@ format:
 test: test_bin
 	./test_bin
 
+ready: format
+	git status
+
 clean:
 	rm -f *.o *_bin tinycompo.hpp

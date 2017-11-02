@@ -95,13 +95,11 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
 
 class MainLoop : public Component {
     TileMap *tilemap{nullptr};
-    Map *map{nullptr};
 
   public:
     MainLoop() {
         port("go", &MainLoop::go);
         port("tilemap", &MainLoop::tilemap);
-        port("map", &MainLoop::map);
     }
 
     string _debug() const override { return "MainLoop"; }
@@ -140,7 +138,6 @@ int main() {
     model.component<Map>("map", tile_map, 10, 10);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
-    model.connect<Use<Map>>(PortAddress("map", "mainloop"), Address("map"));
 
     Assembly assembly(model);
     assembly.call("mainloop", "go");
