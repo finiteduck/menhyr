@@ -136,8 +136,16 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
+            sf::CircleShape hexagon(75, 6);
+            // hexagon.setRotation(90);
+            hexagon.setPosition(400, 100);
+            hexagon.setFillColor(sf::Color(0, 0, 0, 0));
+            hexagon.setOutlineThickness(4);
+            hexagon.setOutlineColor(sf::Color(180, 180, 255, 90));
+
             window.clear();
             window.draw(*tilemap);
+            window.draw(hexagon);
             window.display();
         }
     }
