@@ -109,14 +109,14 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        // sf::RenderWindow window(sf::VideoMode(800, 600), "Test");
-        sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
+        sf::RenderWindow window(sf::VideoMode(1500, 1000), "Test");
+        // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
         window.setFramerateLimit(60);
 
         tilemap->load();
 
-        int loops{0};
-        auto start = chrono::system_clock::now();
+        // int loops{0};
+        // auto start = chrono::system_clock::now();
 
         while (window.isOpen()) {
             sf::Event event;
@@ -142,14 +142,14 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
-            cout << "." << flush;
-            loops++;
-            if (loops == 30) {
-                cout << chrono::duration<double>(chrono::system_clock::now() - start).count()
-                     << "s\n";
-                loops = 0;
-                start = chrono::system_clock::now();
-            }
+            // cout << "." << flush;
+            // loops++;
+            // if (loops == 30) {
+            //     cout << chrono::duration<double>(chrono::system_clock::now() - start).count()
+            //          << "s\n";
+            //     loops = 0;
+            //     start = chrono::system_clock::now();
+            // }
 
             sf::CircleShape hexagon(75, 6);
             // hexagon.setRotation(90);
