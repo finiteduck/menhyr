@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <SFML/Graphics.hpp>
 #include <chrono>
 #include "tinycompo.hpp"
@@ -108,8 +109,8 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        sf::RenderWindow window(sf::VideoMode(800, 600), "Test");
-        // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
+        // sf::RenderWindow window(sf::VideoMode(800, 600), "Test");
+        sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
         window.setFramerateLimit(60);
 
         tilemap->load();
