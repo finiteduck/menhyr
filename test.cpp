@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <math.h>
 #include <SFML/Graphics.hpp>
-#include <chrono>
 #include "tinycompo.hpp"
 
 using namespace std;
@@ -44,7 +43,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     sf::VertexArray array;
     Map *map{nullptr};
 
-    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const final {
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         states.texture = &tileset;
         target.draw(array, states);
@@ -97,7 +96,10 @@ class Person : public sf::Drawable, public sf::Transformable, public Component {
     sf::Texture person_texture;
     sf::Sprite person_sprite;
 
-    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const final {
+    sf::Vector2f target{1350, 625};
+    float speed{25};  // in px/s
+
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         target.draw(person_sprite, states);
     }
@@ -106,6 +108,18 @@ class Person : public sf::Drawable, public sf::Transformable, public Component {
     Person() {
         person_texture.loadFromFile("png/people1.png");
         person_sprite.setTexture(person_texture);
+    }
+
+    void animate(float elapsed_time) {
+        auto before_pos = getPosition();
+        auto path = target - before_pos;
+        float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
+        if (length_path > 3) {
+            auto move = path * (speed * elapsed_time / length_path);
+            setPosition(before_pos + move);
+        } else {  // if destination reached, choose another target
+            target = before_pos + sf::Vector2f(rand() % 250 - 125, rand() % 250 - 125);
+        }
     }
 };
 
@@ -123,7 +137,10 @@ class MainLoop : public Component {
     string _debug() const override { return "MainLoop"; }
 
     void go() {
-        sf::RenderWindow window(sf::VideoMode(1500, 1000), "Test");
+        sf::ContextSettings settings;
+        settings.antialiasingLevel = 8;
+
+        sf::RenderWindow window(sf::VideoMode(1500, 1000), "Test", sf::Style::Default, settings);
         // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
         window.setFramerateLimit(60);
 
@@ -144,9 +161,7 @@ class MainLoop : public Component {
         // sf::RenderTexture renderTexture;
         // renderTexture.create(clipTexture.getSize().x, clipTexture.getSize().y);
 
-        // int loops{0};
-        // auto start = chrono::system_clock::now();
-
+        sf::Clock clock;
         while (window.isOpen()) {
             sf::Event event;
             while (window.pollEvent(event)) {
@@ -175,15 +190,6 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
-            // cout << "." << flush;
-            // loops++;
-            // if (loops == 30) {
-            //     cout << chrono::duration<double>(chrono::system_clock::now() - start).count()
-            //          << "s\n";
-            //     loops = 0;
-            //     start = chrono::system_clock::now();
-            // }
-
             // sf::CircleShape hexagon(75, 6);
             // // hexagon.setRotation(90);
             // hexagon.setPosition(400, 100);
@@ -196,6 +202,10 @@ class MainLoop : public Component {
             // renderTexture.draw(clipSprite, blendMode);
             // renderTexture.display();
             // sf::Sprite renderSprite(renderTexture.getTexture());
+
+            sf::Time elapsed_time = clock.restart();
+
+            john.animate(elapsed_time.asSeconds());
 
             window.clear();
             window.draw(*tilemap);
