@@ -93,6 +93,22 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     }
 };
 
+class Person : public sf::Drawable, public sf::Transformable, public Component {
+    sf::Texture person_texture;
+    sf::Sprite person_sprite;
+
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const final {
+        states.transform *= getTransform();
+        target.draw(person_sprite, states);
+    }
+
+  public:
+    Person() {
+        person_texture.loadFromFile("png/people1.png");
+        person_sprite.setTexture(person_texture);
+    }
+};
+
 class MainLoop : public Component {
     TileMap *tilemap{nullptr};
     bool mouse_pressed{false};
@@ -115,6 +131,18 @@ class MainLoop : public Component {
         window.setView(main_view);
 
         tilemap->load();
+
+        Person john;
+        john.setPosition(1300, 600);
+
+        // sf::Texture clipTexture;
+        // clipTexture.loadFromFile("test.png");
+        // sf::Sprite clipSprite(clipTexture);
+        // sf::BlendMode blendMode(sf::BlendMode::Zero, sf::BlendMode::One, sf::BlendMode::Add,
+        //                         sf::BlendMode::DstAlpha, sf::BlendMode::OneMinusSrcAlpha,
+        //                         sf::BlendMode::Subtract);
+        // sf::RenderTexture renderTexture;
+        // renderTexture.create(clipTexture.getSize().x, clipTexture.getSize().y);
 
         // int loops{0};
         // auto start = chrono::system_clock::now();
@@ -163,8 +191,16 @@ class MainLoop : public Component {
             // hexagon.setOutlineThickness(4);
             // hexagon.setOutlineColor(sf::Color(180, 180, 255, 90));
 
+            // renderTexture.clear(sf::Color::Transparent);
+            // renderTexture.draw(*tilemap);
+            // renderTexture.draw(clipSprite, blendMode);
+            // renderTexture.display();
+            // sf::Sprite renderSprite(renderTexture.getTexture());
+
             window.clear();
             window.draw(*tilemap);
+            // window.draw(renderSprite);
+            window.draw(john);
             // window.draw(hexagon);
             window.display();
         }
