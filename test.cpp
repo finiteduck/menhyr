@@ -280,6 +280,15 @@ struct PlaceObject {
     }
 };
 
+struct PlaceArray {
+    static void _connect(Assembly &assembly, Address world, Address array) {
+        int array_size = assembly.at<Assembly>(array).size();
+        for (int i = 0; i < array_size; i++) {
+            PlaceObject::_connect(assembly, world, Address(array, i));
+        }
+    }
+};
+
 int main() {
     srand(time(NULL));
 
@@ -299,10 +308,7 @@ int main() {
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
     model.composite<Array<Person>>("objects", 25);
-    for (int i = 0; i < 25; i++) {
-        model.connect<PlaceObject>(Address("mainloop"), Address("objects", i));
-    }
-    // model.connect<MultiUse<GameObject>>(PortAddress("objects", "mainloop"), Address("objects"));
+    model.connect<PlaceArray>(Address("mainloop"), Address("objects"));
 
     model.component<HexGrid>("grid");
     model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
