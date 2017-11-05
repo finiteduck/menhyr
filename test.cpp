@@ -134,11 +134,14 @@ class Person : public GameObject {
 
 class HexGrid : public GameObject {
     vector<sf::CircleShape> hexagons;
+    bool toggle_value{true};
 
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
-        states.transform *= getTransform();
-        for (auto h : hexagons) {
-            target.draw(h, states);
+        if (toggle_value) {
+            states.transform *= getTransform();
+            for (auto h : hexagons) {
+                target.draw(h, states);
+            }
         }
     }
 
@@ -164,12 +167,14 @@ class HexGrid : public GameObject {
 
   public:
     HexGrid() {
-        for (int i = 0; i < 22; i++) {
-            for (int j = 0; j < 17; j++) {
+        for (int i = -2; i < 20; i++) {
+            for (int j = -2; j < 15; j++) {
                 add_hexagon(i, j);
             }
         }
     }
+
+    void toggle() { toggle_value = !toggle_value; }
 };
 
 class MainLoop : public Component {
@@ -177,6 +182,7 @@ class MainLoop : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
 
+    HexGrid *grid;
     vector<GameObject *> objects;
     void add_person(GameObject *object) { objects.push_back(object); }
 
@@ -185,6 +191,7 @@ class MainLoop : public Component {
         port("go", &MainLoop::go);
         port("tilemap", &MainLoop::tilemap);
         port("objects", &MainLoop::add_person);
+        port("grid", &MainLoop::grid);
     }
 
     string _debug() const override { return "MainLoop"; }
@@ -237,14 +244,16 @@ class MainLoop : public Component {
                 } else if (event.type == sf::Event::MouseWheelScrolled) {
                     main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
                     window.setView(main_view);
-                }
-                if (event.type == sf::Event::Resized) {
+                } else if (event.type == sf::Event::Resized) {
                     float zoom = main_view.getSize().x / window_width;
                     main_view.setSize(zoom * event.size.width, zoom * event.size.height);
                     window.setView(main_view);
                     window_width = event.size.width;
                     window_height =
                         event.size.height;  // unused for now but might as well update it
+                } else if (event.type == sf::Event::KeyPressed &&
+                           event.key.code == sf::Keyboard::G) {
+                    grid->toggle();
                 }
             }
             if (mouse_pressed) {
@@ -303,6 +312,7 @@ int main() {
 
     model.component<HexGrid>("grid");
     model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
+    model.connect<Use<HexGrid>>(PortAddress("grid", "mainloop"), Address("grid"));
 
     // Instantiating + calling main loop
     Assembly assembly(model);
