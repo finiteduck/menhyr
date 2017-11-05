@@ -97,8 +97,8 @@ class TileMap : public GameObject {
 };
 
 class Person : public GameObject {
-    sf::Texture person_texture;
-    sf::Sprite person_sprite;
+    sf::Texture person_texture, clothes_texture;
+    sf::Sprite person_sprite, clothes_sprite;
 
     sf::Vector2f target{1350, 625};
     float speed{25};  // in px/s
@@ -106,13 +106,17 @@ class Person : public GameObject {
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         target.draw(person_sprite, states);
+        target.draw(clothes_sprite, states);
     }
 
   public:
     Person() {
-        string image = "png/people" + to_string(rand() % 3 + 1) + ".png";
-        person_texture.loadFromFile(image);
+        int number = rand() % 3 + 1;
+        person_texture.loadFromFile("png/people" + to_string(number) + ".png");
         person_sprite.setTexture(person_texture);
+        clothes_texture.loadFromFile("png/clothes" + to_string(number) + ".png");
+        clothes_sprite.setTexture(clothes_texture);
+        clothes_sprite.setColor(sf::Color(120, 120, 200));
     }
 
     void animate(float elapsed_time) override {
@@ -149,7 +153,9 @@ class MainLoop : public Component {
         sf::ContextSettings settings;
         settings.antialiasingLevel = 8;
 
-        sf::RenderWindow window(sf::VideoMode(1500, 1000), "Test", sf::Style::Default, settings);
+        int window_width = 1500, window_height = 1000;
+        sf::RenderWindow window(sf::VideoMode(window_width, window_height), "Test",
+                                sf::Style::Default, settings);
         // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
         window.setFramerateLimit(60);
 
@@ -189,6 +195,14 @@ class MainLoop : public Component {
                 } else if (event.type == sf::Event::MouseWheelScrolled) {
                     main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
                     window.setView(main_view);
+                }
+                if (event.type == sf::Event::Resized) {
+                    float zoom = main_view.getSize().x / window_width;
+                    main_view.setSize(zoom * event.size.width, zoom * event.size.height);
+                    window.setView(main_view);
+                    window_width = event.size.width;
+                    window_height =
+                        event.size.height;  // unused for now but might as well update it
                 }
             }
             if (mouse_pressed) {
