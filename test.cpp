@@ -106,7 +106,8 @@ class Person : public sf::Drawable, public sf::Transformable, public Component {
 
   public:
     Person() {
-        person_texture.loadFromFile("png/people1.png");
+        string image = "png/people" + to_string(rand() % 3 + 1) + ".png";
+        person_texture.loadFromFile(image);
         person_sprite.setTexture(person_texture);
     }
 
@@ -128,10 +129,14 @@ class MainLoop : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
 
+    vector<Person *> persons;
+    void add_person(Person *person) { persons.push_back(person); }
+
   public:
     MainLoop() {
         port("go", &MainLoop::go);
         port("tilemap", &MainLoop::tilemap);
+        port("persons", &MainLoop::add_person);
     }
 
     string _debug() const override { return "MainLoop"; }
@@ -149,8 +154,9 @@ class MainLoop : public Component {
 
         tilemap->load();
 
-        Person john;
-        john.setPosition(1300, 600);
+        for (auto person : persons) {
+            person->setPosition(1300, 600);
+        }
 
         // sf::Texture clipTexture;
         // clipTexture.loadFromFile("test.png");
@@ -205,12 +211,15 @@ class MainLoop : public Component {
 
             sf::Time elapsed_time = clock.restart();
 
-            john.animate(elapsed_time.asSeconds());
-
             window.clear();
             window.draw(*tilemap);
             // window.draw(renderSprite);
-            window.draw(john);
+            sort(persons.begin(), persons.end(),
+                 [](Person *p1, Person *p2) { return p1->getPosition().y < p2->getPosition().y; });
+            for (auto person : persons) {
+                person->animate(elapsed_time.asSeconds());
+                window.draw(*person);
+            }
             // window.draw(hexagon);
             window.display();
         }
@@ -234,6 +243,9 @@ int main() {
     model.component<Map>("map", tile_map, 20, 15);
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
+
+    model.composite<Array<Person>>("persons", 15);
+    model.connect<MultiUse<Person>>(PortAddress("persons", "mainloop"), Address("persons"));
 
     // Instantiating + calling main loop
     Assembly assembly(model);

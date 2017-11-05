@@ -118,10 +118,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8"
-     inkscape:cx="269.46087"
-     inkscape:cy="766.3676"
+     inkscape:cx="198.0323"
+     inkscape:cy="764.93903"
      inkscape:document-units="px"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer2"
      showgrid="false"
      inkscape:window-width="2560"
      inkscape:window-height="1016"
@@ -144,8 +144,7 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="Repères"
-     style="display:inline"
-     sodipodi:insensitive="true">
+     style="display:none">
     <g
        id="g4792"
        transform="translate(-13.94761,194.38097)">
@@ -539,7 +538,10 @@
        height="74.807259"
        width="55.993561"
        id="rect4233"
-       style="opacity:1;fill:none;fill-opacity:0.49411765;stroke:#000000;stroke-width:1.31012666;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+       style="opacity:1;fill:none;fill-opacity:0.49411765;stroke:#000000;stroke-width:1.31012666;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       inkscape:export-filename="/home/ziltoid/git/menhyr/png/people2.png"
+       inkscape:export-xdpi="47.117401"
+       inkscape:export-ydpi="47.117401" />
     <rect
        style="opacity:1;fill:none;fill-opacity:0.49411765;stroke:#000000;stroke-width:1.31012666;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect4235"
@@ -547,7 +549,10 @@
        height="74.807259"
        x="305.97913"
        y="265.74106"
-       ry="0" />
+       ry="0"
+       inkscape:export-filename="/home/ziltoid/git/menhyr/png/people3.png"
+       inkscape:export-xdpi="47.117401"
+       inkscape:export-ydpi="47.117401" />
   </g>
   <g
      inkscape:label="Calque 1"
