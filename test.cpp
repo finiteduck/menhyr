@@ -114,6 +114,7 @@ class Person : public GameObject {
         int number = rand() % 3 + 1;
         person_texture.loadFromFile("png/people" + to_string(number) + ".png");
         person_sprite.setTexture(person_texture);
+        person_sprite.setColor(sf::Color(210, 200, 200));
         clothes_texture.loadFromFile("png/clothes" + to_string(number) + ".png");
         clothes_sprite.setTexture(clothes_texture);
         clothes_sprite.setColor(sf::Color(120, 120, 200));
@@ -151,7 +152,7 @@ class HexGrid : public GameObject {
 
         int w = 150;  // hexagon width (distance between parallel edges)
         int overlap = 6;
-        sf::Vector2f offset(107, 137);
+        sf::Vector2f offset(102, 134);
 
         int hd = w - overlap;
         int vd = hd * sqrt(3) / 2;
@@ -306,6 +307,8 @@ int main() {
     model.component<HexGrid>("grid");
     model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
     model.connect<Use<HexGrid>>(PortAddress("grid", "mainloop"), Address("grid"));
+
+    model.dot_to_file("tmp.dot");
 
     // Instantiating + calling main loop
     Assembly assembly(model);
