@@ -7,6 +7,10 @@ using namespace std;
 
 using int_matrix = vector<vector<int>>;
 
+struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
+    virtual void animate(float) {}
+};
+
 // Game-only object that stores a matrix of tile types
 class Map : public Component {
     int_matrix mat;
@@ -38,7 +42,7 @@ class Map : public Component {
 };
 
 // Graphics-related object
-class TileMap : public sf::Drawable, public sf::Transformable, public Component {
+class TileMap : public GameObject {
     sf::Texture tileset;
     sf::VertexArray array;
     Map *map{nullptr};
@@ -92,7 +96,7 @@ class TileMap : public sf::Drawable, public sf::Transformable, public Component 
     }
 };
 
-class Person : public sf::Drawable, public sf::Transformable, public Component {
+class Person : public GameObject {
     sf::Texture person_texture;
     sf::Sprite person_sprite;
 
@@ -111,7 +115,7 @@ class Person : public sf::Drawable, public sf::Transformable, public Component {
         person_sprite.setTexture(person_texture);
     }
 
-    void animate(float elapsed_time) {
+    void animate(float elapsed_time) override {
         auto before_pos = getPosition();
         auto path = target - before_pos;
         float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
@@ -129,14 +133,14 @@ class MainLoop : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
 
-    vector<Person *> persons;
-    void add_person(Person *person) { persons.push_back(person); }
+    vector<GameObject *> objects;
+    void add_person(GameObject *object) { objects.push_back(object); }
 
   public:
     MainLoop() {
         port("go", &MainLoop::go);
         port("tilemap", &MainLoop::tilemap);
-        port("persons", &MainLoop::add_person);
+        port("objects", &MainLoop::add_person);
     }
 
     string _debug() const override { return "MainLoop"; }
@@ -154,8 +158,8 @@ class MainLoop : public Component {
 
         tilemap->load();
 
-        for (auto person : persons) {
-            person->setPosition(1300, 600);
+        for (auto object : objects) {
+            object->setPosition(1300, 600);
         }
 
         // sf::Texture clipTexture;
@@ -214,11 +218,12 @@ class MainLoop : public Component {
             window.clear();
             window.draw(*tilemap);
             // window.draw(renderSprite);
-            sort(persons.begin(), persons.end(),
-                 [](Person *p1, Person *p2) { return p1->getPosition().y < p2->getPosition().y; });
-            for (auto person : persons) {
-                person->animate(elapsed_time.asSeconds());
-                window.draw(*person);
+            sort(objects.begin(), objects.end(), [](GameObject *p1, GameObject *p2) {
+                return p1->getPosition().y < p2->getPosition().y;
+            });
+            for (auto object : objects) {
+                object->animate(elapsed_time.asSeconds());
+                window.draw(*object);
             }
             // window.draw(hexagon);
             window.display();
@@ -244,8 +249,8 @@ int main() {
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
-    model.composite<Array<Person>>("persons", 15);
-    model.connect<MultiUse<Person>>(PortAddress("persons", "mainloop"), Address("persons"));
+    model.composite<Array<Person>>("objects", 25);
+    model.connect<MultiUse<GameObject>>(PortAddress("objects", "mainloop"), Address("objects"));
 
     // Instantiating + calling main loop
     Assembly assembly(model);
