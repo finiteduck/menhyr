@@ -184,17 +184,18 @@ class MainLoop : public Component {
 
     HexGrid *grid;
     vector<GameObject *> objects;
-    void add_person(GameObject *object) { objects.push_back(object); }
 
   public:
     MainLoop() {
         port("go", &MainLoop::go);
         port("tilemap", &MainLoop::tilemap);
-        port("objects", &MainLoop::add_person);
+        port("objects", &MainLoop::add_object);
         port("grid", &MainLoop::grid);
     }
 
-    string _debug() const override { return "MainLoop"; }
+    sf::Vector2i dimensions{150 * 20, 150 * 15};
+
+    void add_object(GameObject *object) { objects.push_back(object); }
 
     void go() {
         sf::ContextSettings settings;
@@ -210,21 +211,6 @@ class MainLoop : public Component {
         window.setView(main_view);
 
         tilemap->load();
-
-        for (auto object : objects) {
-            if (dynamic_cast<Person *>(object) != nullptr) {
-                object->setPosition(1300, 600);
-            }
-        }
-
-        // sf::Texture clipTexture;
-        // clipTexture.loadFromFile("test.png");
-        // sf::Sprite clipSprite(clipTexture);
-        // sf::BlendMode blendMode(sf::BlendMode::Zero, sf::BlendMode::One, sf::BlendMode::Add,
-        //                         sf::BlendMode::DstAlpha, sf::BlendMode::OneMinusSrcAlpha,
-        //                         sf::BlendMode::Subtract);
-        // sf::RenderTexture renderTexture;
-        // renderTexture.create(clipTexture.getSize().x, clipTexture.getSize().y);
 
         sf::Clock clock;
         while (window.isOpen()) {
@@ -265,12 +251,6 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
-            // renderTexture.clear(sf::Color::Transparent);
-            // renderTexture.draw(*tilemap);
-            // renderTexture.draw(clipSprite, blendMode);
-            // renderTexture.display();
-            // sf::Sprite renderSprite(renderTexture.getTexture());
-
             sf::Time elapsed_time = clock.restart();
 
             window.clear();
@@ -286,6 +266,16 @@ class MainLoop : public Component {
             // window.draw(hexagon);
             window.display();
         }
+    }
+};
+
+struct PlaceObject {
+    static void _connect(Assembly &assembly, Address world, Address object) {
+        auto &world_ref = assembly.at<MainLoop>(world);
+        auto &object_ref = assembly.at<GameObject>(object);
+        auto dimensions = world_ref.dimensions;
+        world_ref.add_object(&object_ref);
+        object_ref.setPosition(rand() % dimensions.x, rand() % dimensions.y);
     }
 };
 
@@ -308,7 +298,10 @@ int main() {
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
     model.composite<Array<Person>>("objects", 25);
-    model.connect<MultiUse<GameObject>>(PortAddress("objects", "mainloop"), Address("objects"));
+    for (int i = 0; i < 25; i++) {
+        model.connect<PlaceObject>(Address("mainloop"), Address("objects", i));
+    }
+    // model.connect<MultiUse<GameObject>>(PortAddress("objects", "mainloop"), Address("objects"));
 
     model.component<HexGrid>("grid");
     model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
