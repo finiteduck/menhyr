@@ -132,6 +132,46 @@ class Person : public GameObject {
     }
 };
 
+class HexGrid : public GameObject {
+    vector<sf::CircleShape> hexagons;
+
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        for (auto h : hexagons) {
+            target.draw(h, states);
+        }
+    }
+
+    void add_hexagon(int x, int y) {
+        hexagons.emplace_back(80, 6);
+        auto &hexagon = hexagons.back();
+
+        int w = 150;  // hexagon width (distance between parallel edges)
+        int overlap = 6;
+        sf::Vector2f offset(107, 137);
+
+        int hd = w - overlap;
+        int vd = hd * sqrt(3) / 2;
+        int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
+
+        hexagon.setPosition(sf::Vector2f(shift_hexa + x * hd, y * vd) + offset);
+
+        // hexagon.setPosition(400, 100);
+        hexagon.setFillColor(sf::Color(0, 0, 0, 0));
+        hexagon.setOutlineThickness(6);
+        hexagon.setOutlineColor(sf::Color(180, 180, 255, 20));
+    }
+
+  public:
+    HexGrid() {
+        for (int i = 0; i < 22; i++) {
+            for (int j = 0; j < 17; j++) {
+                add_hexagon(i, j);
+            }
+        }
+    }
+};
+
 class MainLoop : public Component {
     TileMap *tilemap{nullptr};
     bool mouse_pressed{false};
@@ -165,7 +205,9 @@ class MainLoop : public Component {
         tilemap->load();
 
         for (auto object : objects) {
-            object->setPosition(1300, 600);
+            if (dynamic_cast<Person *>(object) != nullptr) {
+                object->setPosition(1300, 600);
+            }
         }
 
         // sf::Texture clipTexture;
@@ -214,13 +256,6 @@ class MainLoop : public Component {
                 tilemap->load();
             }
 
-            // sf::CircleShape hexagon(75, 6);
-            // // hexagon.setRotation(90);
-            // hexagon.setPosition(400, 100);
-            // hexagon.setFillColor(sf::Color(0, 0, 0, 0));
-            // hexagon.setOutlineThickness(4);
-            // hexagon.setOutlineColor(sf::Color(180, 180, 255, 90));
-
             // renderTexture.clear(sf::Color::Transparent);
             // renderTexture.draw(*tilemap);
             // renderTexture.draw(clipSprite, blendMode);
@@ -265,6 +300,9 @@ int main() {
 
     model.composite<Array<Person>>("objects", 25);
     model.connect<MultiUse<GameObject>>(PortAddress("objects", "mainloop"), Address("objects"));
+
+    model.component<HexGrid>("grid");
+    model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
 
     // Instantiating + calling main loop
     Assembly assembly(model);
