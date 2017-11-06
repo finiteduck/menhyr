@@ -114,7 +114,7 @@ class Person : public GameObject {
         int number = rand() % 3 + 1;
         person_texture.loadFromFile("png/people" + to_string(number) + ".png");
         person_sprite.setTexture(person_texture);
-        person_sprite.setColor(sf::Color(210, 200, 200));
+        person_sprite.setColor(sf::Color(240, 230, 230));
         clothes_texture.loadFromFile("png/clothes" + to_string(number) + ".png");
         clothes_sprite.setTexture(clothes_texture);
         clothes_sprite.setColor(sf::Color(120, 120, 200));
@@ -162,8 +162,8 @@ class HexGrid : public GameObject {
 
         // hexagon.setPosition(400, 100);
         hexagon.setFillColor(sf::Color(0, 0, 0, 0));
-        hexagon.setOutlineThickness(6);
-        hexagon.setOutlineColor(sf::Color(180, 180, 255, 20));
+        hexagon.setOutlineThickness(10);
+        hexagon.setOutlineColor(sf::Color(180, 180, 255, 15));
     }
 
   public:
@@ -256,7 +256,6 @@ class MainLoop : public Component {
 
             window.clear();
             window.draw(*tilemap);
-            // window.draw(renderSprite);
             sort(objects.begin(), objects.end(), [](GameObject *p1, GameObject *p2) {
                 return p1->getPosition().y < p2->getPosition().y;
             });
@@ -264,7 +263,6 @@ class MainLoop : public Component {
                 object->animate(elapsed_time.asSeconds());
                 window.draw(*object);
             }
-            // window.draw(hexagon);
             window.display();
         }
     }
@@ -307,7 +305,7 @@ int main() {
     model.connect<Use<TileMap>>(PortAddress("tilemap", "mainloop"), Address("tilemap"));
     model.connect<Use<Map>>(PortAddress("map", "tilemap"), Address("map"));
 
-    model.composite<Array<Person>>("objects", 25);
+    model.composite<Array<Person>>("objects", 30);
     model.connect<PlaceArray>(Address("mainloop"), Address("objects"));
 
     model.component<HexGrid>("grid");
