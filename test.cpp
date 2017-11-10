@@ -9,8 +9,6 @@
 ==================================================================================================*/
 using namespace std;
 
-using int_matrix = vector<vector<int>>;
-
 struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
     virtual void animate(float) {}
 };
@@ -23,12 +21,10 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
 class Map : public Component {
     using TileType = int;
 
-    int_matrix mat;
-
-    sf::Vector2i size_vec;
+    vector<vector<int>> mat;
 
   public:
-    Map(vector<int> v, size_t size_x, size_t size_y) : size_vec(size_x, size_y) {
+    Map(vector<int> v, size_t size_x, size_t size_y) {
         assert(size_x * size_y == v.size());
         for (size_t x = 0; x < size_x; x++) {
             mat.emplace_back();
@@ -40,7 +36,7 @@ class Map : public Component {
 
     TileType at(int x, int y) const { return mat.at(x).at(y); }
 
-    sf::Vector2i size() { return size_vec; }
+    sf::Vector2i size() { return sf::Vector2i(mat.size(), mat.at(0).size()); }
 };
 
 /*
