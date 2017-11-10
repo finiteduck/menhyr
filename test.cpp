@@ -3,6 +3,10 @@
 #include <SFML/Graphics.hpp>
 #include "tinycompo.hpp"
 
+/*
+====================================================================================================
+  ~*~ Global definitions ~*~
+==================================================================================================*/
 using namespace std;
 
 using int_matrix = vector<vector<int>>;
@@ -11,14 +15,20 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
     virtual void animate(float) {}
 };
 
-// Game-only object that stores a matrix of tile types
+/*
+====================================================================================================
+  ~*~ Map Class ~*~
+  Game-only object that stores a matrix of tile types
+==================================================================================================*/
 class Map : public Component {
+    using TileType = int;
+
     int_matrix mat;
 
-  public:
-    int size_x, size_y;
+    sf::Vector2i size_vec;
 
-    Map(vector<int> v, size_t size_x, size_t size_y) : size_x(size_x), size_y(size_y) {
+  public:
+    Map(vector<int> v, size_t size_x, size_t size_y) : size_vec(size_x, size_y) {
         assert(size_x * size_y == v.size());
         for (size_t x = 0; x < size_x; x++) {
             mat.emplace_back();
@@ -28,20 +38,16 @@ class Map : public Component {
         }
     }
 
-    const int_matrix &get() const { return mat; }
-    int_matrix &get() { return mat; }
+    TileType at(int x, int y) const { return mat.at(x).at(y); }
 
-    void print() {
-        for (auto line : mat) {
-            for (auto element : line) {
-                cout << element << " ";
-            }
-            cout << endl;
-        }
-    }
+    sf::Vector2i size() { return size_vec; }
 };
 
-// Graphics-related object
+/*
+====================================================================================================
+  ~*~ TileMap Class ~*~
+  Graphics-related object.
+==================================================================================================*/
 class TileMap : public GameObject {
     sf::Texture tileset;
     sf::VertexArray array;
@@ -80,22 +86,26 @@ class TileMap : public GameObject {
     TileMap() { port("map", &TileMap::map); }
 
     void load() {
-        size_t size_x = map->size_x, size_y = map->size_y;
+        sf::Vector2i chunk_size = map->size();
 
         tileset.loadFromFile("png/alltiles.png");
         array.setPrimitiveType(sf::Quads);
-        array.resize(4 * size_x * size_y);
+        array.resize(4 * chunk_size.x * chunk_size.y);
 
-        for (size_t y = 0; y < size_y; y++) {
-            for (size_t x = 0; x < size_x; x++) {
-                auto index = x * map->size_y + y;
-                auto type = map->get().at(x).at(y);
+        for (int y = 0; y < chunk_size.y; y++) {
+            for (int x = 0; x < chunk_size.x; x++) {
+                auto index = x * chunk_size.y + y;
+                auto type = map->at(x, y);
                 draw_tile(index, type, x, y);
             }
         }
     }
 };
 
+/*
+====================================================================================================
+  ~*~ Person Class ~*~
+==================================================================================================*/
 class Person : public GameObject {
     sf::Texture person_texture, clothes_texture;
     sf::Sprite person_sprite, clothes_sprite;
@@ -133,6 +143,10 @@ class Person : public GameObject {
     }
 };
 
+/*
+====================================================================================================
+  ~*~ Person Class ~*~
+==================================================================================================*/
 class HexGrid : public GameObject {
     vector<sf::CircleShape> hexagons;
     bool toggle_value{true};
@@ -178,6 +192,10 @@ class HexGrid : public GameObject {
     void toggle() { toggle_value = !toggle_value; }
 };
 
+/*
+====================================================================================================
+  ~*~ MainLoop Class ~*~
+==================================================================================================*/
 class MainLoop : public Component {
     TileMap *tilemap{nullptr};
     bool mouse_pressed{false};
@@ -268,6 +286,10 @@ class MainLoop : public Component {
     }
 };
 
+/*
+====================================================================================================
+  ~*~ Place* connectors ~*~
+==================================================================================================*/
 struct PlaceObject {
     static void _connect(Assembly &assembly, Address world, Address object) {
         auto &world_ref = assembly.at<MainLoop>(world);
@@ -287,6 +309,10 @@ struct PlaceArray {
     }
 };
 
+/*
+====================================================================================================
+  ~*~ main ~*~
+==================================================================================================*/
 int main() {
     srand(time(NULL));
 
@@ -311,8 +337,6 @@ int main() {
     model.component<HexGrid>("grid");
     model.connect<Use<GameObject>>(PortAddress("objects", "mainloop"), Address("grid"));
     model.connect<Use<HexGrid>>(PortAddress("grid", "mainloop"), Address("grid"));
-
-    model.dot_to_file("tmp.dot");
 
     // Instantiating + calling main loop
     Assembly assembly(model);
