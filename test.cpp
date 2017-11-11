@@ -13,6 +13,12 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
     virtual void animate(float) {}
 };
 
+template <class C>
+sf::Vector2f get_center(C &object) {
+    auto bb = object.getGlobalBounds();
+    return sf::Vector2f(bb.width / 2., bb.height / 2.);
+}
+
 /*
 ====================================================================================================
   ~*~ Map Class ~*~
@@ -58,10 +64,7 @@ class TileMap : public GameObject {
     // x, y = coords of top left angle
     void draw_tile(int index, int type, int x, int y) {
         int size_y = 193, size_x = 258;  // tile size
-        int w = 150;                     // hexagon width (distance between parallel edges)
-        int overlap = 6;
-
-        int hd = w - overlap;
+        int hd = 144;                    // hexagon width (distance between parallel edges)
         int vd = hd * sqrt(3) / 2;
         int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
 
@@ -141,17 +144,40 @@ class Person : public GameObject {
 
 /*
 ====================================================================================================
-  ~*~ Person Class ~*~
+  ~*~ Logical hex grid ~*~
+==================================================================================================*/
+class LogicalHexGrid : public Component {
+    using HexCoords = sf::Vector2i;
+
+  public:
+    HexCoords pixel_coords_to_hex(sf::Vector2i pixel_coords) {
+        int hd = 144;
+        int vd = hd * sqrt(3) / 2;
+
+        return HexCoords(pixel_coords.x % hd, pixel_coords.y % vd);  // FIXME
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ HexGrid component ~*~
 ==================================================================================================*/
 class HexGrid : public GameObject {
     vector<sf::CircleShape> hexagons;
-    bool toggle_value{true};
+    vector<sf::Text> coords;
+    bool toggle_value{true}, toggle_coords_value{false};
+    sf::Font font;
 
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
         if (toggle_value) {
-            states.transform *= getTransform();
             for (auto h : hexagons) {
                 target.draw(h, states);
+            }
+        }
+        if (toggle_coords_value) {
+            for (auto c : coords) {
+                target.draw(c, states);
             }
         }
     }
@@ -160,11 +186,8 @@ class HexGrid : public GameObject {
         hexagons.emplace_back(80, 6);
         auto &hexagon = hexagons.back();
 
-        int w = 150;  // hexagon width (distance between parallel edges)
-        int overlap = 6;
         sf::Vector2f offset(102, 134);
-
-        int hd = w - overlap;
+        int hd = 144;
         int vd = hd * sqrt(3) / 2;
         int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
 
@@ -174,10 +197,21 @@ class HexGrid : public GameObject {
         hexagon.setFillColor(sf::Color(0, 0, 0, 0));
         hexagon.setOutlineThickness(10);
         hexagon.setOutlineColor(sf::Color(180, 180, 255, 15));
+
+        coords.push_back(sf::Text());
+        auto &text = coords.back();
+
+        text.setFont(font);
+        text.setString('(' + to_string(x) + ", " + to_string(y) + ')');
+        text.setCharacterSize(24);
+        text.setFillColor(sf::Color::Red);
+        text.setOrigin(get_center(text));
+        text.setPosition(hexagon.getPosition() + get_center(hexagon));
     }
 
   public:
     HexGrid() {
+        font.loadFromFile("DejaVuSans.ttf");
         for (int i = -2; i < 20; i++) {
             for (int j = -2; j < 15; j++) {
                 add_hexagon(i, j);
@@ -186,6 +220,7 @@ class HexGrid : public GameObject {
     }
 
     void toggle() { toggle_value = !toggle_value; }
+    void toggle_coords() { toggle_coords_value = !toggle_coords_value; }
 };
 
 /*
@@ -255,6 +290,9 @@ class MainLoop : public Component {
                 } else if (event.type == sf::Event::KeyPressed &&
                            event.key.code == sf::Keyboard::G) {
                     grid->toggle();
+                } else if (event.type == sf::Event::KeyPressed &&
+                           event.key.code == sf::Keyboard::C) {
+                    grid->toggle_coords();
                 }
             }
             if (mouse_pressed) {
