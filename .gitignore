@@ -1,3 +1,4 @@
 *.o
 *_bin
 tmp*
+tinycompo.hpp

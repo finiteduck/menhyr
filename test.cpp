@@ -20,6 +20,20 @@ sf::Vector2f get_center(C &object) {
     return sf::Vector2f(bb.width / 2., bb.height / 2.);
 }
 
+template <class C>
+void highlight(C &object, sf::RenderTarget &target, sf::RenderStates states) {
+    sf::RectangleShape rect;
+    rect.setOutlineColor(sf::Color::Red);
+    rect.setOutlineThickness(1);
+    rect.setFillColor(sf::Color(0, 0, 0, 0));
+
+    auto bb = object.getGlobalBounds();
+    rect.setSize(sf::Vector2f(bb.width, bb.height));
+    rect.setPosition(sf::Vector2f(bb.left, bb.top));
+
+    target.draw(rect, states);
+}
+
 /*
 ====================================================================================================
   ~*~ Map Class ~*~
@@ -116,6 +130,7 @@ class Person : public GameObject {
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         target.draw(person_sprite, states);
+        highlight(person_sprite, target, states);
         target.draw(clothes_sprite, states);
     }
 
@@ -174,11 +189,13 @@ class HexGrid : public GameObject {
         if (toggle_value) {
             for (auto h : hexagons) {
                 target.draw(h, states);
+                // highlight(h, target, states);
             }
         }
         if (toggle_coords_value) {
             for (auto c : coords) {
                 target.draw(c, states);
+                // highlight(c, target, states);
             }
         }
     }
