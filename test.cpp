@@ -8,6 +8,7 @@
   ~*~ Global definitions ~*~
 ==================================================================================================*/
 using namespace std;
+using namespace tc;
 
 struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
     virtual void animate(float) {}
