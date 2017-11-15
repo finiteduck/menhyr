@@ -21,17 +21,29 @@ sf::Vector2f get_center(C &object) {
 }
 
 template <class C>
+sf::Vector2f get_position(C &object) {
+    auto bb = object.getGlobalBounds();
+    return sf::Vector2f(bb.left, bb.top);
+}
+
+template <class C>
 void highlight(C &object, sf::RenderTarget &target, sf::RenderStates states) {
     sf::RectangleShape rect;
     rect.setOutlineColor(sf::Color::Red);
-    rect.setOutlineThickness(1);
+    rect.setOutlineThickness(2);
     rect.setFillColor(sf::Color(0, 0, 0, 0));
 
     auto bb = object.getGlobalBounds();
     rect.setSize(sf::Vector2f(bb.width, bb.height));
     rect.setPosition(sf::Vector2f(bb.left, bb.top));
 
+    sf::CircleShape point(5);
+    point.setOrigin(get_center(point));
+    point.setPosition(get_position(object) + object.getOrigin());
+    point.setFillColor(sf::Color::Red);
+
     target.draw(rect, states);
+    target.draw(point, states);
 }
 
 /*
@@ -130,8 +142,8 @@ class Person : public GameObject {
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         target.draw(person_sprite, states);
-        highlight(person_sprite, target, states);
         target.draw(clothes_sprite, states);
+        highlight(person_sprite, target, states);
     }
 
   public:
@@ -224,7 +236,7 @@ class HexGrid : public GameObject {
         text.setCharacterSize(24);
         text.setFillColor(sf::Color::Red);
         text.setOrigin(get_center(text));
-        text.setPosition(hexagon.getPosition() + get_center(hexagon));
+        text.setPosition(get_position(hexagon) + get_center(hexagon));
     }
 
   public:
