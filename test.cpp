@@ -143,7 +143,7 @@ class Person : public GameObject {
         states.transform *= getTransform();
         target.draw(person_sprite, states);
         target.draw(clothes_sprite, states);
-        highlight(person_sprite, target, states);
+        // highlight(person_sprite, target, states);
     }
 
   public:
@@ -216,7 +216,7 @@ class HexGrid : public GameObject {
         hexagons.emplace_back(80, 6);
         auto &hexagon = hexagons.back();
 
-        sf::Vector2f offset(102, 134);
+        sf::Vector2f offset(102, 132);
         int hd = 144;
         int vd = hd * sqrt(3) / 2;
         int shift_hexa = (y % 2 == 0) ? (hd / 2) : 0;
@@ -278,13 +278,8 @@ class MainLoop : public Component {
     void add_object(GameObject *object) { objects.push_back(object); }
 
     void go() {
-        sf::ContextSettings settings;
-        settings.antialiasingLevel = 8;
-
         int window_width = 1500, window_height = 1000;
-        sf::RenderWindow window(sf::VideoMode(window_width, window_height), "Test",
-                                sf::Style::Default, settings);
-        // sf::RenderWindow window(sf::VideoMode(2560, 1080), "Test", sf::Style::Fullscreen);
+        sf::RenderWindow window(sf::VideoMode(window_width, window_height), "Menhyr");
         window.setFramerateLimit(60);
 
         sf::View main_view(sf::FloatRect(200, 200, 1700, 1200));
