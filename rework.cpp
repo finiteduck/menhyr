@@ -4,16 +4,42 @@
 
 using namespace std;
 using namespace tc;
+using vec = sf::Vector2f;
+using cube = sf::Vector3f;
+using scalar = float;
 
 /*
 ====================================================================================================
   ~*~ Global defs and interfaces ~*~
 ==================================================================================================*/
 struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
-    virtual void animate(float) {}
+    virtual void animate(scalar) {}
 };
 
-sf::Vector2f operator*(float f, sf::Vector2f v) { return sf::Vector2f(f * v.x, f * v.y); }
+// vec operator*(scalar f, vec v) { return vec(f * v.x, f * v.y); }
+
+/*
+====================================================================================================
+  ~*~ HexCoords ~*~
+==================================================================================================*/
+class HexCoords {
+    scalar x{0}, y{0}, z{0};
+
+  public:
+    HexCoords() = default;
+    HexCoords(scalar x, scalar y, scalar z) : x(x), y(y), z(z) {}
+    HexCoords(cube c) : x(c.x), y(c.y), z(c.z) {}
+
+    vec get_axial() { return vec(x, y); }
+    cube get_cube() { return cube(x, y, z); }
+    vec get_pixel(scalar w) { return vec((x + y / 2) * w, y * w * sqrt(3) / 2); }
+
+    static HexCoords from_axial(vec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
+    static HexCoords from_axial(scalar x, scalar y) { return HexCoords(x, y, -x - y); }
+    static HexCoords from_offset(int x, int y) { return HexCoords::from_axial(x - y / 2, y); }
+    static HexCoords from_cube(cube c) { return HexCoords(c); }
+    static HexCoords from_cube(scalar x, scalar y, scalar z) { return HexCoords(x, y, z); }
+};
 
 /*
 ====================================================================================================
@@ -74,7 +100,7 @@ class GameView : public Component {
             main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
             window->set_view(main_view);
         } else if (event.type == sf::Event::Resized) {
-            float zoom = main_view.getSize().x / window->width;
+            scalar zoom = main_view.getSize().x / window->width;
             main_view.setSize(zoom * event.size.width, zoom * event.size.height);
             window->set_view(main_view);
             window->width = event.size.width;
@@ -125,15 +151,13 @@ class MainLoop : public Component {
             wref.clear();
 
             // hexagons
-            float w = 100;
-            // float h = w * 2 / sqrt(3);
-            sf::Vector2f b1(w, 0);
-            sf::Vector2f b2(w / 2, sqrt(3) * w / 2);
+            scalar w = 100;
             for (int i = 0; i < 25; i++) {
                 for (int j = 0; j < 25; j++) {
-                    sf::CircleShape hex(50*2/sqrt(3) -1, 6);
+                    auto c = HexCoords::from_offset(i, j);
+                    sf::CircleShape hex(50 * 2 / sqrt(3) - 2, 6);
                     hex.setOrigin(hex.getRadius(), hex.getRadius());
-                    hex.setPosition(i * b1 + j * b2);
+                    hex.setPosition(c.get_pixel(w));
                     wref.draw(hex);
                 }
             }
@@ -155,6 +179,8 @@ class MainLoop : public Component {
   ~*~ main ~*~
 ==================================================================================================*/
 int main() {
+    srand(time(NULL));
+
     Model model;
     model.component<MainLoop>("mainloop")
         .connect<Use<Window>>("window", "window")
