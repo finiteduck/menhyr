@@ -5,7 +5,8 @@
 using namespace std;
 using namespace tc;
 using vec = sf::Vector2f;
-using cube = sf::Vector3f;
+using ivec = sf::Vector2i;
+using cube = sf::Vector3i;
 using scalar = float;
 
 /*
@@ -23,23 +24,46 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
   ~*~ HexCoords ~*~
 ==================================================================================================*/
 class HexCoords {
-    scalar x{0}, y{0}, z{0};
+    int x{0}, y{0}, z{0};
 
   public:
     HexCoords() = default;
-    HexCoords(scalar x, scalar y, scalar z) : x(x), y(y), z(z) {}
+    HexCoords(int x, int y, int z) : x(x), y(y), z(z) {}
     HexCoords(cube c) : x(c.x), y(c.y), z(c.z) {}
 
-    vec get_axial() { return vec(x, y); }
-    cube get_cube() { return cube(x, y, z); }
-    vec get_pixel(scalar w) { return vec((x + y / 2) * w, y * w * sqrt(3) / 2); }
+    ivec get_axial() const { return ivec(x, y); }
+    cube get_cube() const { return cube(x, y, z); }
+    vec get_pixel(int w) const { return vec((x + float(y) / 2) * w, float(y) * w * sqrt(3) / 2); }
 
-    static HexCoords from_axial(vec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
-    static HexCoords from_axial(scalar x, scalar y) { return HexCoords(x, y, -x - y); }
+    bool operator==(const HexCoords& other) {
+        return x == other.x and y == other.y and z == other.z;
+    }
+
+    static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
+    static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
     static HexCoords from_offset(int x, int y) { return HexCoords::from_axial(x - y / 2, y); }
+
+    static HexCoords from_pixel(int w, int x, int y) {
+        scalar fx((x - y / sqrt(3)) / w), fy(y * 2 / (sqrt(3) * w)), fz(-fx - fy);
+        scalar rx(round(fx)), ry(round(fy)), rz(round(fz));
+        scalar dx(abs(fx - rx)), dy(abs(fy - ry)), dz(abs(fz - rz));
+        if (dx > dy and dx > dz) {
+            return HexCoords(-ry - rz, ry, rz);
+        } else if (dy > dz) {
+            return HexCoords(rx, -rx - rz, rz);
+        } else {
+            return HexCoords(rx, ry, -rx - ry);
+        }
+    }
+
     static HexCoords from_cube(cube c) { return HexCoords(c); }
-    static HexCoords from_cube(scalar x, scalar y, scalar z) { return HexCoords(x, y, z); }
+    static HexCoords from_cube(int x, int y, int z) { return HexCoords(x, y, z); }
 };
+
+ostream& operator<<(ostream& os, HexCoords c) {
+    os << '(' << c.get_axial().x << ", " << c.get_axial().y << ')';
+    return os;
+}
 
 /*
 ====================================================================================================
@@ -120,6 +144,10 @@ class GameView : public Component {
             mouse_y = mouse_pos.y;
         }
     }
+
+    vec get_mouse_position() {
+        return window->get().mapPixelToCoords(window->get_mouse_position());
+    }
 };
 
 /*
@@ -141,10 +169,16 @@ class MainLoop : public Component {
         main_view->update();
 
         auto& wref = window->get();
+        HexCoords yolo;
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
-                if (!window->process_events(event)) main_view->process_events(event);
+                if (event.type == sf::Event::MouseButtonPressed and
+                    event.mouseButton.button == sf::Mouse::Right) {
+                    vec pos = main_view->get_mouse_position();
+                    yolo = HexCoords::from_pixel(100, pos.x, pos.y);
+                } else if (!window->process_events(event))
+                    main_view->process_events(event);
             }
 
             main_view->update();
@@ -152,12 +186,15 @@ class MainLoop : public Component {
 
             // hexagons
             scalar w = 100;
-            for (int i = 0; i < 25; i++) {
-                for (int j = 0; j < 25; j++) {
+            for (int i = -10; i < 25; i++) {
+                for (int j = -10; j < 25; j++) {
                     auto c = HexCoords::from_offset(i, j);
                     sf::CircleShape hex(50 * 2 / sqrt(3) - 2, 6);
                     hex.setOrigin(hex.getRadius(), hex.getRadius());
                     hex.setPosition(c.get_pixel(w));
+                    if (c==yolo) {
+                        hex.setFillColor(sf::Color::Red);
+                    }
                     wref.draw(hex);
                 }
             }
