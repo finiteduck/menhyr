@@ -7,6 +7,16 @@ using namespace tc;
 
 /*
 ====================================================================================================
+  ~*~ Global defs and interfaces ~*~
+==================================================================================================*/
+struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
+    virtual void animate(float) {}
+};
+
+sf::Vector2f operator*(float f, sf::Vector2f v) { return sf::Vector2f(f * v.x, f * v.y); }
+
+/*
+====================================================================================================
   ~*~ Window ~*~
 ==================================================================================================*/
 class Window : public Component {
@@ -23,10 +33,6 @@ class Window : public Component {
 
     sf::Vector2i get_mouse_position() { return sf::Mouse::getPosition(window); }
 
-    bool is_open() { return window.isOpen(); }
-
-    bool poll_event(sf::Event& event) { return window.pollEvent(event); }
-
     bool process_events(sf::Event& event) {
         if (event.type == sf::Event::Closed) {
             window.close();
@@ -36,12 +42,7 @@ class Window : public Component {
         return true;
     }
 
-    void update() {
-        window.clear();
-        sf::CircleShape thing(100, 6);
-        window.draw(thing);
-        window.display();
-    }
+    sf::RenderWindow& get() { return window; }
 };
 
 /*
@@ -56,7 +57,7 @@ class GameView : public Component {
     Window* window;
 
   public:
-    GameView() : main_view(sf::FloatRect(200, 200, 1700, 1200)) {
+    GameView() : main_view(sf::FloatRect(-200, -200, 1300, 800)) {
         port("window", &GameView::window);
     }
 
@@ -113,15 +114,38 @@ class MainLoop : public Component {
     void go() {
         main_view->update();
 
-        while (window->is_open()) {
+        auto& wref = window->get();
+        while (wref.isOpen()) {
             sf::Event event;
-            while (window->poll_event(event)) {
-                if (window->process_events(event)) break;
-                if (main_view->process_events(event)) break;
+            while (wref.pollEvent(event)) {
+                if (!window->process_events(event)) main_view->process_events(event);
             }
 
             main_view->update();
-            window->update();
+            wref.clear();
+
+            // hexagons
+            float w = 100;
+            // float h = w * 2 / sqrt(3);
+            sf::Vector2f b1(w, 0);
+            sf::Vector2f b2(w / 2, sqrt(3) * w / 2);
+            for (int i = 0; i < 25; i++) {
+                for (int j = 0; j < 25; j++) {
+                    sf::CircleShape hex(50*2/sqrt(3) -1, 6);
+                    hex.setOrigin(hex.getRadius(), hex.getRadius());
+                    hex.setPosition(i * b1 + j * b2);
+                    wref.draw(hex);
+                }
+            }
+
+            // origin
+            sf::CircleShape origin(5);
+            origin.setFillColor(sf::Color::Red);
+            origin.setOrigin(origin.getRadius(), origin.getRadius());
+            origin.setPosition(0, 0);
+            wref.draw(origin);
+
+            wref.display();
         }
     }
 };
