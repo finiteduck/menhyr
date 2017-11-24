@@ -1,5 +1,6 @@
 #include <math.h>
 #include <SFML/Graphics.hpp>
+#include <unordered_map>
 #include "tinycompo.hpp"
 
 using namespace std;
@@ -25,6 +26,7 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
 ==================================================================================================*/
 class HexCoords {
     int x{0}, y{0}, z{0};
+    friend std::hash<HexCoords>;
 
   public:
     HexCoords() = default;
@@ -42,7 +44,7 @@ class HexCoords {
     static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
     static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
     static HexCoords from_offset(int x, int y) {
-        return HexCoords::from_axial(x - y / 2 - (y < 0 ? y%2 : 0), y); // TODO review formula
+        return HexCoords::from_axial(x - y / 2 - (y < 0 ? y % 2 : 0), y);  // TODO review formula
     }
 
     static HexCoords from_pixel(int w, int x, int y) {
@@ -60,12 +62,49 @@ class HexCoords {
 
     static HexCoords from_cube(cube c) { return HexCoords(c); }
     static HexCoords from_cube(int x, int y, int z) { return HexCoords(x, y, z); }
+
+    bool operator==(const HexCoords& other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
 };
 
 ostream& operator<<(ostream& os, HexCoords c) {
     os << '(' << c.get_axial().x << ", " << c.get_axial().y << ')';
     return os;
 }
+
+namespace std {
+    template <>
+    struct hash<HexCoords> {
+        size_t operator()(const HexCoords& key) const {
+            size_t result = 17;
+            result = result * 79 + hash<int>()(key.x);
+            result = result * 79 + hash<int>()(key.y);
+            result = result * 79 + hash<int>()(key.z);
+            return result;
+        }
+    };
+}  // namespace std
+
+/*
+====================================================================================================
+  ~*~ TerrainMap ~*~
+==================================================================================================*/
+class TerrainMap : public Component {
+    using TileType = int;
+    unordered_map<HexCoords, TileType> map;
+
+  public:
+    TileType get(const HexCoords& coords) {
+        auto it = map.find(coords);
+        if (it == map.end()) {
+            map.insert(make_pair(coords, rand() % 7));
+            return map.at(coords);
+        } else {
+            return it->second;
+        }
+    }
+};
 
 /*
 ====================================================================================================
@@ -87,6 +126,8 @@ class TileMap : public GameObject {
         array.setPrimitiveType(sf::Quads);
         array.resize(35 * 35 * 4);
 
+        TerrainMap tmap;
+
         for (int i = -10; i < 25; i++) {
             for (int j = -10; j < 25; j++) {
                 int index = i + j * 35 + 360;
@@ -96,13 +137,13 @@ class TileMap : public GameObject {
                 vec hex_center = HexCoords::from_offset(i, j).get_pixel(w);
                 vec tl = hex_center - tile_center;
                 vec br = tl + tile_dim;
-                int tile_type = rand() % 7;
+                int tile_type = tmap.get(HexCoords::from_offset(i,j));
                 vec tex_tl = vec{0, tile_type * tile_dim.y};
                 quad[0].position = tl;
                 quad[1].position = vec{br.x, tl.y};
                 quad[2].position = br;
                 quad[3].position = vec{tl.x, br.y};
-                quad[0].texCoords = tex_tl + vec{0, 0};
+                quad[0].texCoords = tex_tl;
                 quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
                 quad[2].texCoords = tex_tl + tile_dim;
                 quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
