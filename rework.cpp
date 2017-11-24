@@ -113,6 +113,7 @@ class TerrainMap : public Component {
 class TileMap : public GameObject {
     sf::Texture tileset;
     sf::VertexArray array;
+    TerrainMap* map;
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -121,12 +122,14 @@ class TileMap : public GameObject {
     }
 
   public:
+    TileMap() {
+        port("map", &TileMap::map);
+    }
+
     void load(double w) {
         tileset.loadFromFile("png/alltiles.png");
         array.setPrimitiveType(sf::Quads);
         array.resize(35 * 35 * 4);
-
-        TerrainMap tmap;
 
         for (int i = -10; i < 25; i++) {
             for (int j = -10; j < 25; j++) {
@@ -138,7 +141,7 @@ class TileMap : public GameObject {
                 vec hex_center = hex_coords.get_pixel(w);
                 vec tl = hex_center - tile_center;
                 vec br = tl + tile_dim;
-                int tile_type = tmap.get(hex_coords);
+                int tile_type = map->get(hex_coords);
                 vec tex_tl = vec{0, tile_type * tile_dim.y};
                 quad[0].position = tl;
                 quad[1].position = vec{br.x, tl.y};
@@ -245,11 +248,13 @@ class GameView : public Component {
 class MainLoop : public Component {
     Window* window;
     GameView* main_view;
+    TileMap* terrain;
 
   public:
     MainLoop() {
         port("window", &MainLoop::window);
         port("view", &MainLoop::main_view);
+        port("terrain", &MainLoop::terrain);
         port("go", &MainLoop::go);
     }
 
@@ -259,8 +264,7 @@ class MainLoop : public Component {
         auto& wref = window->get();
         HexCoords yolo;
         scalar w = 144;
-        TileMap map;
-        map.load(w);
+        terrain->load(w);
         bool toggle_grid = true;
         while (wref.isOpen()) {
             sf::Event event;
@@ -279,7 +283,7 @@ class MainLoop : public Component {
             wref.clear();
 
             // tile map
-            wref.draw(map);
+            wref.draw(*terrain);
 
             // hexagons
             for (int i = -10; i < 25; i++) {
@@ -324,9 +328,12 @@ int main() {
     Model model;
     model.component<MainLoop>("mainloop")
         .connect<Use<Window>>("window", "window")
-        .connect<Use<GameView>>("view", "mainview");
+        .connect<Use<GameView>>("view", "mainview")
+        .connect<Use<TileMap>>("terrain", "terrain");
     model.component<Window>("window");
     model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
+    model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
+    model.component<TerrainMap>("terrainMap");
 
     Assembly assembly(model);
     assembly.call("mainloop", "go");
