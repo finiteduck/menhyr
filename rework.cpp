@@ -122,9 +122,7 @@ class TileMap : public GameObject {
     }
 
   public:
-    TileMap() {
-        port("map", &TileMap::map);
-    }
+    TileMap() { port("map", &TileMap::map); }
 
     void load(double w) {
         tileset.loadFromFile("png/alltiles.png");

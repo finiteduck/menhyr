@@ -9,7 +9,7 @@ tinycompo.hpp:
 	$(CXX) $< -o $@ -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++11
 
 format:
-	clang-format -i test.cpp
+	clang-format -i test.cpp rework.cpp
 
 test: test_bin
 	./$<
