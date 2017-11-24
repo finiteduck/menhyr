@@ -41,7 +41,9 @@ class HexCoords {
 
     static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
     static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
-    static HexCoords from_offset(int x, int y) { return HexCoords::from_axial(x - y / 2, y); }
+    static HexCoords from_offset(int x, int y) {
+        return HexCoords::from_axial(x - y / 2 - (y < 0 ? y%2 : 0), y); // TODO review formula
+    }
 
     static HexCoords from_pixel(int w, int x, int y) {
         scalar fx((x - y / sqrt(3)) / w), fy(y * 2 / (sqrt(3) * w)), fz(-fx - fy);
@@ -83,11 +85,11 @@ class TileMap : public GameObject {
     void load(double w) {
         tileset.loadFromFile("png/alltiles.png");
         array.setPrimitiveType(sf::Quads);
-        array.resize(1600);
+        array.resize(35 * 35 * 4);
 
-        for (int i = 0; i < 20; i++) {
-            for (int j = 0; j < 20; j++) {
-                int index = i + j * 20;
+        for (int i = -10; i < 25; i++) {
+            for (int j = -10; j < 25; j++) {
+                int index = i + j * 35 + 360;
                 sf::Vertex* quad = &array[index * 4];
                 vec tile_dim{258, 193};
                 vec tile_center{100, 100};
