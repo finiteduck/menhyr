@@ -133,11 +133,12 @@ class TileMap : public GameObject {
                 int index = i + j * 35 + 360;
                 sf::Vertex* quad = &array[index * 4];
                 vec tile_dim{258, 193};
-                vec tile_center{100, 100};
-                vec hex_center = HexCoords::from_offset(i, j).get_pixel(w);
+                vec tile_center{109, 88};
+                auto hex_coords = HexCoords::from_offset(i, j);
+                vec hex_center = hex_coords.get_pixel(w);
                 vec tl = hex_center - tile_center;
                 vec br = tl + tile_dim;
-                int tile_type = tmap.get(HexCoords::from_offset(i,j));
+                int tile_type = tmap.get(hex_coords);
                 vec tex_tl = vec{0, tile_type * tile_dim.y};
                 quad[0].position = tl;
                 quad[1].position = vec{br.x, tl.y};
@@ -260,11 +261,14 @@ class MainLoop : public Component {
         scalar w = 144;
         TileMap map;
         map.load(w);
+        bool toggle_grid = true;
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
-                if (event.type == sf::Event::MouseButtonPressed and
-                    event.mouseButton.button == sf::Mouse::Right) {
+                if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
+                    toggle_grid = !toggle_grid;
+                } else if (event.type == sf::Event::MouseButtonPressed and
+                           event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
                     yolo = HexCoords::from_pixel(w, pos.x, pos.y);
                 } else if (!window->process_events(event))
@@ -281,13 +285,20 @@ class MainLoop : public Component {
             for (int i = -10; i < 25; i++) {
                 for (int j = -10; j < 25; j++) {
                     auto c = HexCoords::from_offset(i, j);
-                    sf::CircleShape hex(25, 6);
+                    sf::CircleShape hex(w / sqrt(3) - 3, 6);
                     hex.setOrigin(hex.getRadius(), hex.getRadius());
+                    hex.setFillColor(sf::Color(0, 0, 0, 0));
                     hex.setPosition(c.get_pixel(w));
-                    if (c == yolo) {
-                        hex.setFillColor(sf::Color::Red);
+                    if (toggle_grid) {
+                        hex.setOutlineColor(sf::Color(255, 255, 255, 15));
+                        hex.setOutlineThickness(3);
                     }
-                    wref.draw(hex);
+                    if (c == yolo) {
+                        hex.setFillColor(sf::Color(255, 0, 0, 15));
+                        wref.draw(hex);
+                    } else if (toggle_grid) {
+                        wref.draw(hex);
+                    }
                 }
             }
 
