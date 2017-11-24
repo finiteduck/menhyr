@@ -67,6 +67,50 @@ ostream& operator<<(ostream& os, HexCoords c) {
 
 /*
 ====================================================================================================
+  ~*~ TileMap ~*~
+==================================================================================================*/
+class TileMap : public GameObject {
+    sf::Texture tileset;
+    sf::VertexArray array;
+
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        states.texture = &tileset;
+        target.draw(array, states);
+    }
+
+  public:
+    void load(double w) {
+        tileset.loadFromFile("png/alltiles.png");
+        array.setPrimitiveType(sf::Quads);
+        array.resize(1600);
+
+        for (int i = 0; i < 20; i++) {
+            for (int j = 0; j < 20; j++) {
+                int index = i + j * 20;
+                sf::Vertex* quad = &array[index * 4];
+                vec tile_dim{258, 193};
+                vec tile_center{100, 100};
+                vec hex_center = HexCoords::from_offset(i, j).get_pixel(w);
+                vec tl = hex_center - tile_center;
+                vec br = tl + tile_dim;
+                int tile_type = rand() % 7;
+                vec tex_tl = vec{0, tile_type * tile_dim.y};
+                quad[0].position = tl;
+                quad[1].position = vec{br.x, tl.y};
+                quad[2].position = br;
+                quad[3].position = vec{tl.x, br.y};
+                quad[0].texCoords = tex_tl + vec{0, 0};
+                quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
+                quad[2].texCoords = tex_tl + tile_dim;
+                quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
+            }
+        }
+    }
+};
+
+/*
+====================================================================================================
   ~*~ Window ~*~
 ==================================================================================================*/
 class Window : public Component {
@@ -170,13 +214,16 @@ class MainLoop : public Component {
 
         auto& wref = window->get();
         HexCoords yolo;
+        scalar w = 144;
+        TileMap map;
+        map.load(w);
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
                 if (event.type == sf::Event::MouseButtonPressed and
                     event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
-                    yolo = HexCoords::from_pixel(100, pos.x, pos.y);
+                    yolo = HexCoords::from_pixel(w, pos.x, pos.y);
                 } else if (!window->process_events(event))
                     main_view->process_events(event);
             }
@@ -184,15 +231,17 @@ class MainLoop : public Component {
             main_view->update();
             wref.clear();
 
+            // tile map
+            wref.draw(map);
+
             // hexagons
-            scalar w = 100;
             for (int i = -10; i < 25; i++) {
                 for (int j = -10; j < 25; j++) {
                     auto c = HexCoords::from_offset(i, j);
-                    sf::CircleShape hex(50 * 2 / sqrt(3) - 2, 6);
+                    sf::CircleShape hex(25, 6);
                     hex.setOrigin(hex.getRadius(), hex.getRadius());
                     hex.setPosition(c.get_pixel(w));
-                    if (c==yolo) {
+                    if (c == yolo) {
                         hex.setFillColor(sf::Color::Red);
                     }
                     wref.draw(hex);
