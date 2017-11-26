@@ -18,8 +18,6 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
     virtual void animate(scalar) {}
 };
 
-// vec operator*(scalar f, vec v) { return vec(f * v.x, f * v.y); }
-
 /*
 ====================================================================================================
   ~*~ HexCoords ~*~
@@ -115,7 +113,7 @@ class TileMap : public GameObject {
     sf::VertexArray array;
     TerrainMap* map;
 
-    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         states.texture = &tileset;
         target.draw(array, states);
@@ -149,6 +147,49 @@ class TileMap : public GameObject {
                 quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
                 quad[2].texCoords = tex_tl + tile_dim;
                 quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
+            }
+        }
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ Window ~*~
+==================================================================================================*/
+class HexGrid : public GameObject {
+    vector<sf::CircleShape> hexes;
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        for (auto hex : hexes) {
+            target.draw(hex, states);
+        }
+    }
+
+  public:
+    void load(float w, HexCoords cursor = HexCoords(0, 0, 0), bool toggle_grid = true) {
+        hexes.clear();
+
+        // cursor
+        hexes.emplace_back(w / sqrt(3) - 3, 6);
+        auto& hex = hexes.back();
+        hex.setOrigin(hex.getRadius(), hex.getRadius());
+        hex.setPosition(cursor.get_pixel(w));
+        hex.setFillColor(sf::Color(255, 0, 0, 15));
+
+        // rest of the grid
+        if (toggle_grid) {
+            for (int i = -10; i < 25; i++) {
+                for (int j = -10; j < 25; j++) {
+                    auto c = HexCoords::from_offset(i, j);
+                    hexes.emplace_back(w / sqrt(3) - 3, 6);
+                    auto& hex = hexes.back();
+                    hex.setOrigin(hex.getRadius(), hex.getRadius());
+                    hex.setFillColor(sf::Color(0, 0, 0, 0));
+                    hex.setPosition(c.get_pixel(w));
+                    hex.setOutlineColor(sf::Color(255, 255, 255, 15));
+                    hex.setOutlineThickness(3);
+                }
             }
         }
     }
@@ -264,45 +305,30 @@ class MainLoop : public Component {
         scalar w = 144;
         terrain->load(w);
         bool toggle_grid = true;
+
+        HexGrid grid;
+        grid.load(w, yolo, toggle_grid);
+
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
                     toggle_grid = !toggle_grid;
+                    grid.load(w, yolo, toggle_grid);
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
                     yolo = HexCoords::from_pixel(w, pos.x, pos.y);
+                    grid.load(w, yolo, toggle_grid);
                 } else if (!window->process_events(event))
                     main_view->process_events(event);
             }
-
             main_view->update();
             wref.clear();
 
             // tile map
             wref.draw(*terrain);
-
-            // hexagons
-            for (int i = -10; i < 25; i++) {
-                for (int j = -10; j < 25; j++) {
-                    auto c = HexCoords::from_offset(i, j);
-                    sf::CircleShape hex(w / sqrt(3) - 3, 6);
-                    hex.setOrigin(hex.getRadius(), hex.getRadius());
-                    hex.setFillColor(sf::Color(0, 0, 0, 0));
-                    hex.setPosition(c.get_pixel(w));
-                    if (toggle_grid) {
-                        hex.setOutlineColor(sf::Color(255, 255, 255, 15));
-                        hex.setOutlineThickness(3);
-                    }
-                    if (c == yolo) {
-                        hex.setFillColor(sf::Color(255, 0, 0, 15));
-                        wref.draw(hex);
-                    } else if (toggle_grid) {
-                        wref.draw(hex);
-                    }
-                }
-            }
+            wref.draw(grid);
 
             // origin
             sf::CircleShape origin(5);
