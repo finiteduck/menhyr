@@ -288,12 +288,14 @@ class MainLoop : public Component {
     Window* window;
     GameView* main_view;
     TileMap* terrain;
+    HexGrid* grid;
 
   public:
     MainLoop() {
         port("window", &MainLoop::window);
         port("view", &MainLoop::main_view);
         port("terrain", &MainLoop::terrain);
+        port("grid", &MainLoop::grid);
         port("go", &MainLoop::go);
     }
 
@@ -305,21 +307,19 @@ class MainLoop : public Component {
         scalar w = 144;
         terrain->load(w);
         bool toggle_grid = true;
-
-        HexGrid grid;
-        grid.load(w, yolo, toggle_grid);
+        grid->load(w, yolo, toggle_grid);
 
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
                     toggle_grid = !toggle_grid;
-                    grid.load(w, yolo, toggle_grid);
+                    grid->load(w, yolo, toggle_grid);
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
                     yolo = HexCoords::from_pixel(w, pos.x, pos.y);
-                    grid.load(w, yolo, toggle_grid);
+                    grid->load(w, yolo, toggle_grid);
                 } else if (!window->process_events(event))
                     main_view->process_events(event);
             }
@@ -328,7 +328,7 @@ class MainLoop : public Component {
 
             // tile map
             wref.draw(*terrain);
-            wref.draw(grid);
+            wref.draw(*grid);
 
             // origin
             sf::CircleShape origin(5);
@@ -353,11 +353,13 @@ int main() {
     model.component<MainLoop>("mainloop")
         .connect<Use<Window>>("window", "window")
         .connect<Use<GameView>>("view", "mainview")
-        .connect<Use<TileMap>>("terrain", "terrain");
+        .connect<Use<TileMap>>("terrain", "terrain")
+        .connect<Use<HexGrid>>("grid", "grid");
     model.component<Window>("window");
     model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
     model.component<TerrainMap>("terrainMap");
+    model.component<HexGrid>("grid");
 
     Assembly assembly(model);
     assembly.call("mainloop", "go");
