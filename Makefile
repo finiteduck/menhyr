@@ -2,10 +2,10 @@
 
 all: test_bin rework_bin
 
-tinycompo.hpp:
-	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > tinycompo.hpp
+src/tinycompo.hpp:
+	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > $@
 
-%_bin: %.cpp tinycompo.hpp
+%_bin: src/%.cpp src/tinycompo.hpp
 	$(CXX) $< -o $@ -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++11
 
 format:
@@ -21,4 +21,4 @@ ready: all format
 	git status
 
 clean:
-	rm -f *.o *_bin tinycompo.hpp
+	rm -f *.o *_bin src/tinycompo.hpp tmp*

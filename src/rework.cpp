@@ -42,7 +42,7 @@ class HexCoords {
     static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
     static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
     static HexCoords from_offset(int x, int y) {
-        return HexCoords::from_axial(x - y / 2 - (y < 0 ? y % 2 : 0), y);  // TODO review formula
+        return HexCoords::from_axial(x - (y >> 1), y);
     }
 
     static HexCoords from_pixel(int w, int x, int y) {
