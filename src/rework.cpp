@@ -34,6 +34,7 @@ class HexCoords {
     ivec get_axial() const { return ivec(x, y); }
     cube get_cube() const { return cube(x, y, z); }
     vec get_pixel(int w) const { return vec((x + float(y) / 2) * w, float(y) * w * sqrt(3) / 2); }
+    ivec get_offset() const { return ivec(get_axial().x + (get_axial().y >> 1), get_axial().y); }
 
     bool operator==(const HexCoords& other) {
         return x == other.x and y == other.y and z == other.z;
@@ -41,11 +42,9 @@ class HexCoords {
 
     static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
     static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
-    static HexCoords from_offset(int x, int y) {
-        return HexCoords::from_axial(x - (y >> 1), y);
-    }
+    static HexCoords from_offset(int x, int y) { return HexCoords::from_axial(x - (y >> 1), y); }
 
-    static HexCoords from_pixel(int w, int x, int y) {
+    static HexCoords from_pixel(float w, float x, float y) {
         scalar fx((x - y / sqrt(3)) / w), fy(y * 2 / (sqrt(3) * w)), fz(-fx - fy);
         scalar rx(round(fx)), ry(round(fy)), rz(round(fz));
         scalar dx(abs(fx - rx)), dy(abs(fy - ry)), dz(abs(fz - rz));
@@ -57,6 +56,7 @@ class HexCoords {
             return HexCoords(rx, ry, -rx - ry);
         }
     }
+    static HexCoords from_pixel(float w, vec v) { return from_pixel(w, v.x, v.y); }
 
     static HexCoords from_cube(cube c) { return HexCoords(c); }
     static HexCoords from_cube(int x, int y, int z) { return HexCoords(x, y, z); }
@@ -167,15 +167,18 @@ class HexGrid : public GameObject {
     }
 
   public:
-    void load(float w, HexCoords cursor = HexCoords(0, 0, 0), bool toggle_grid = true) {
-        hexes.clear();
-
-        // cursor
+    void highlight(float w, HexCoords coords) {
         hexes.emplace_back(w / sqrt(3) - 3, 6);
         auto& hex = hexes.back();
         hex.setOrigin(hex.getRadius(), hex.getRadius());
-        hex.setPosition(cursor.get_pixel(w));
+        hex.setPosition(coords.get_pixel(w));
         hex.setFillColor(sf::Color(255, 0, 0, 15));
+    }
+
+    void load(float w, HexCoords cursor = HexCoords(0, 0, 0), bool toggle_grid = true) {
+        hexes.clear();
+
+        highlight(w, cursor);
 
         // rest of the grid
         if (toggle_grid) {
@@ -309,6 +312,30 @@ class MainLoop : public Component {
         bool toggle_grid = true;
         grid->load(w, yolo, toggle_grid);
 
+        vec tl(79, 37);
+        vec dim(800, 500);
+        // rectangle
+        auto draw_rect = [dim, w, this](vec tl) {
+            vec br = tl + dim;
+            auto ctl = HexCoords::from_pixel(w, tl);
+            auto cbr = HexCoords::from_pixel(w, br);
+            vector<HexCoords> rect_contents;
+            for (int i = ctl.get_offset().x - 1; i <= cbr.get_offset().x + 1; i++) {
+                for (int j = ctl.get_offset().y - 1; j <= cbr.get_offset().y + 1; j++) {
+                    rect_contents.push_back(HexCoords::from_offset(i, j));
+                }
+            }
+            for (auto h : rect_contents) {
+                grid->highlight(w, h);
+            }
+        };
+
+        sf::RectangleShape rect(dim);
+        rect.setFillColor(sf::Color::Transparent);
+        rect.setOutlineThickness(5);
+        rect.setPosition(tl);
+        draw_rect(tl);
+
         while (wref.isOpen()) {
             sf::Event event;
             while (wref.pollEvent(event)) {
@@ -318,8 +345,10 @@ class MainLoop : public Component {
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
-                    yolo = HexCoords::from_pixel(w, pos.x, pos.y);
+                    yolo = HexCoords::from_pixel(w, pos);
                     grid->load(w, yolo, toggle_grid);
+                    draw_rect(pos);
+                    rect.setPosition(pos);
                 } else if (!window->process_events(event))
                     main_view->process_events(event);
             }
@@ -329,6 +358,8 @@ class MainLoop : public Component {
             // tile map
             wref.draw(*terrain);
             wref.draw(*grid);
+
+            wref.draw(rect);
 
             // origin
             sf::CircleShape origin(5);
