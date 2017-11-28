@@ -104,6 +104,8 @@ class TerrainMap : public Component {
             return it->second;
         }
     }
+
+    void set(const HexCoords& coords, TileType type) { map[coords] = type; }
 };
 
 /*
@@ -113,7 +115,6 @@ class TerrainMap : public Component {
 class TileMap : public GameObject {
     sf::Texture tileset;
     sf::VertexArray array;
-    TerrainMap* map;
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -122,6 +123,8 @@ class TileMap : public GameObject {
     }
 
   public:
+    TerrainMap* map;
+
     TileMap() { port("map", &TileMap::map); }
 
     void load(double w, const vector<HexCoords>& coords) {
@@ -227,6 +230,48 @@ class Window : public Component {
 
 /*
 ====================================================================================================
+  ~*~ Person Class ~*~
+==================================================================================================*/
+class Person : public GameObject {
+    sf::Texture person_texture, clothes_texture;
+    sf::Sprite person_sprite, clothes_sprite;
+
+    sf::Vector2f target{1350, 625};
+    float speed{25};  // in px/s
+
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        target.draw(person_sprite, states);
+        target.draw(clothes_sprite, states);
+        // highlight(person_sprite, target, states);
+    }
+
+  public:
+    Person() {
+        int number = rand() % 3 + 1;
+        person_texture.loadFromFile("png/people" + to_string(number) + ".png");
+        person_sprite.setTexture(person_texture);
+        // person_sprite.setColor(sf::Color(240, 230, 230));
+        clothes_texture.loadFromFile("png/clothes" + to_string(number) + ".png");
+        clothes_sprite.setTexture(clothes_texture);
+        clothes_sprite.setColor(sf::Color(rand() % 256, rand() % 256, rand() % 256));
+    }
+
+    void animate(float elapsed_time) override {
+        auto before_pos = getPosition();
+        auto path = target - before_pos;
+        float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
+        if (length_path > 3) {
+            auto move = path * (speed * elapsed_time / length_path);
+            setPosition(before_pos + move);
+        } else {  // if destination reached, choose another target
+            target = before_pos + sf::Vector2f(rand() % 250 - 125, rand() % 250 - 125);
+        }
+    }
+};
+
+/*
+====================================================================================================
   ~*~ GameView ~*~
 ==================================================================================================*/
 class GameView : public Component {
@@ -326,29 +371,36 @@ class MainLoop : public Component {
 
     void go() {
         auto& wref = window->get();
-        HexCoords yolo;
+        HexCoords cursor_coords;
+        bool toggle_grid = true;
         scalar w = 144;
 
         main_view->update(w);
+        terrain->map->set(HexCoords::from_offset(5, 5), 7);
 
-        bool toggle_grid = true;
+        vector<unique_ptr<Person>> persons;
 
         auto hexes_to_draw = main_view->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
-        grid->load(w, hexes_to_draw, yolo, toggle_grid);
+        grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
+        sf::Clock clock;
         while (wref.isOpen()) {
+            sf::Time elapsed_time = clock.restart();
             sf::Event event;
             while (wref.pollEvent(event)) {
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
                     toggle_grid = !toggle_grid;
-                    grid->load(w, hexes_to_draw, yolo, toggle_grid);
+                    grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
-                    yolo = HexCoords::from_pixel(w, pos);
-                    grid->load(w, hexes_to_draw, yolo, toggle_grid);
+                    cursor_coords = HexCoords::from_pixel(w, pos);
+                    grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+
+                    persons.emplace_back(new Person);
+                    persons.back()->setPosition(pos);
 
                 } else if (!window->process_events(event)) {
                     main_view->process_events(event);
@@ -357,7 +409,7 @@ class MainLoop : public Component {
             if (main_view->update(w)) {
                 hexes_to_draw = main_view->get_visible_coords(w);
                 terrain->load(w, hexes_to_draw);
-                grid->load(w, hexes_to_draw, yolo, toggle_grid);
+                grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
                 // cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
             }
             wref.clear();
@@ -365,6 +417,14 @@ class MainLoop : public Component {
             // tile map
             wref.draw(*terrain);
             wref.draw(*grid);
+            sort(persons.begin(), persons.end(),
+                 [](unique_ptr<Person>& p1, unique_ptr<Person>& p2) {
+                     return p1->getPosition().y < p2->getPosition().y;
+                 });
+            for (auto& person : persons) {
+                person->animate(elapsed_time.asSeconds());
+                wref.draw(*person);
+            }
 
             // origin
             sf::CircleShape origin(5);
