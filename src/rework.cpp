@@ -122,32 +122,29 @@ class TileMap : public GameObject {
   public:
     TileMap() { port("map", &TileMap::map); }
 
-    void load(double w) {
+    void load(double w, const vector<HexCoords>& coords) {
         tileset.loadFromFile("png/alltiles.png");
         array.setPrimitiveType(sf::Quads);
-        array.resize(35 * 35 * 4);
+        array.resize(coords.size() * 4);
 
-        for (int i = -10; i < 25; i++) {
-            for (int j = -10; j < 25; j++) {
-                int index = i + j * 35 + 360;
-                sf::Vertex* quad = &array[index * 4];
-                vec tile_dim{258, 193};
-                vec tile_center{109, 88};
-                auto hex_coords = HexCoords::from_offset(i, j);
-                vec hex_center = hex_coords.get_pixel(w);
-                vec tl = hex_center - tile_center;
-                vec br = tl + tile_dim;
-                int tile_type = map->get(hex_coords);
-                vec tex_tl = vec{0, tile_type * tile_dim.y};
-                quad[0].position = tl;
-                quad[1].position = vec{br.x, tl.y};
-                quad[2].position = br;
-                quad[3].position = vec{tl.x, br.y};
-                quad[0].texCoords = tex_tl;
-                quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
-                quad[2].texCoords = tex_tl + tile_dim;
-                quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
-            }
+        for (size_t i = 0; i < coords.size(); i++) {
+            auto hex_coords = coords.at(i);
+            sf::Vertex* quad = &array[i * 4];
+            vec tile_dim{258, 193};
+            vec tile_center{109, 88};
+            vec hex_center = hex_coords.get_pixel(w);
+            vec tl = hex_center - tile_center;
+            vec br = tl + tile_dim;
+            int tile_type = map->get(hex_coords);
+            vec tex_tl = vec{0, tile_type * tile_dim.y};
+            quad[0].position = tl;
+            quad[1].position = vec{br.x, tl.y};
+            quad[2].position = br;
+            quad[3].position = vec{tl.x, br.y};
+            quad[0].texCoords = tex_tl;
+            quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
+            quad[2].texCoords = tex_tl + tile_dim;
+            quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
         }
     }
 };
@@ -175,24 +172,22 @@ class HexGrid : public GameObject {
         hex.setFillColor(sf::Color(255, 0, 0, 15));
     }
 
-    void load(float w, HexCoords cursor = HexCoords(0, 0, 0), bool toggle_grid = true) {
+    void load(float w, vector<HexCoords> coords, HexCoords cursor = HexCoords(0, 0, 0),
+              bool toggle_grid = true) {
         hexes.clear();
 
         highlight(w, cursor);
 
         // rest of the grid
         if (toggle_grid) {
-            for (int i = -10; i < 25; i++) {
-                for (int j = -10; j < 25; j++) {
-                    auto c = HexCoords::from_offset(i, j);
-                    hexes.emplace_back(w / sqrt(3) - 3, 6);
-                    auto& hex = hexes.back();
-                    hex.setOrigin(hex.getRadius(), hex.getRadius());
-                    hex.setFillColor(sf::Color(0, 0, 0, 0));
-                    hex.setPosition(c.get_pixel(w));
-                    hex.setOutlineColor(sf::Color(255, 255, 255, 15));
-                    hex.setOutlineThickness(3);
-                }
+            for (auto c : coords) {
+                hexes.emplace_back(w / sqrt(3) - 3, 6);
+                auto& hex = hexes.back();
+                hex.setOrigin(hex.getRadius(), hex.getRadius());
+                hex.setFillColor(sf::Color(0, 0, 0, 0));
+                hex.setPosition(c.get_pixel(w));
+                hex.setOutlineColor(sf::Color(255, 255, 255, 15));
+                hex.setOutlineThickness(3);
             }
         }
     }
@@ -308,27 +303,27 @@ class MainLoop : public Component {
         auto& wref = window->get();
         HexCoords yolo;
         scalar w = 144;
-        terrain->load(w);
-        bool toggle_grid = true;
-        grid->load(w, yolo, toggle_grid);
+
+        vector<HexCoords> hexes_to_draw;
 
         vec tl(79, 37);
         vec dim(800, 500);
         // rectangle
-        auto draw_rect = [dim, w, this](vec tl) {
+        auto draw_rect = [dim, w, &hexes_to_draw, this](vec tl) {
+            hexes_to_draw.clear();
             vec br = tl + dim;
             auto ctl = HexCoords::from_pixel(w, tl);
             auto cbr = HexCoords::from_pixel(w, br);
-            vector<HexCoords> rect_contents;
             for (int i = ctl.get_offset().x - 1; i <= cbr.get_offset().x + 1; i++) {
                 for (int j = ctl.get_offset().y - 1; j <= cbr.get_offset().y + 1; j++) {
-                    rect_contents.push_back(HexCoords::from_offset(i, j));
+                    hexes_to_draw.push_back(HexCoords::from_offset(i, j));
                 }
             }
-            for (auto h : rect_contents) {
-                grid->highlight(w, h);
-            }
+            terrain->load(w, hexes_to_draw);
         };
+
+        bool toggle_grid = true;
+        grid->load(w, hexes_to_draw, yolo, toggle_grid);
 
         sf::RectangleShape rect(dim);
         rect.setFillColor(sf::Color::Transparent);
@@ -341,13 +336,13 @@ class MainLoop : public Component {
             while (wref.pollEvent(event)) {
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
                     toggle_grid = !toggle_grid;
-                    grid->load(w, yolo, toggle_grid);
+                    grid->load(w, hexes_to_draw, yolo, toggle_grid);
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
                     yolo = HexCoords::from_pixel(w, pos);
-                    grid->load(w, yolo, toggle_grid);
                     draw_rect(pos);
+                    grid->load(w, hexes_to_draw, yolo, toggle_grid);
                     rect.setPosition(pos);
                 } else if (!window->process_events(event))
                     main_view->process_events(event);
