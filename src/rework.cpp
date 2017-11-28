@@ -257,6 +257,11 @@ class Person : public GameObject {
         clothes_sprite.setColor(sf::Color(rand() % 256, rand() % 256, rand() % 256));
     }
 
+    void teleport_to(const sf::Vector2f& position) {
+        setPosition(position);
+        target = position;
+    }
+
     void animate(float elapsed_time) override {
         auto before_pos = getPosition();
         auto path = target - before_pos;
@@ -400,7 +405,7 @@ class MainLoop : public Component {
                     grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
                     persons.emplace_back(new Person);
-                    persons.back()->setPosition(pos);
+                    persons.back()->teleport_to(pos);
 
                 } else if (!window->process_events(event)) {
                     main_view->process_events(event);
