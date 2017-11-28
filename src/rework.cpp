@@ -18,6 +18,8 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public Compon
     virtual void animate(scalar) {}
 };
 
+vec operator/(vec v, scalar s) { return vec(v.x / s, v.y / s); }
+
 /*
 ====================================================================================================
   ~*~ HexCoords ~*~
@@ -231,6 +233,7 @@ class GameView : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
     sf::View main_view;
+    HexCoords ctl, cbr;
 
     Window* window;
 
@@ -263,7 +266,7 @@ class GameView : public Component {
         return true;
     }
 
-    void update() {
+    bool update(scalar w) {
         if (mouse_pressed) {
             auto mouse_pos = window->get_mouse_position();
             main_view.move(mouse_x - mouse_pos.x, mouse_y - mouse_pos.y);
@@ -271,10 +274,34 @@ class GameView : public Component {
             mouse_x = mouse_pos.x;
             mouse_y = mouse_pos.y;
         }
+        vec dim = main_view.getSize();
+        vec center = main_view.getCenter();
+        vec tl = center - dim / 2;
+        vec br = tl + dim;
+        return !(HexCoords::from_pixel(w, tl) == ctl) or !(HexCoords::from_pixel(w, br) == cbr);
     }
 
     vec get_mouse_position() {
         return window->get().mapPixelToCoords(window->get_mouse_position());
+    }
+
+    vector<HexCoords> get_visible_coords(int w) {
+        // gather relevant view coordinates
+        vec dim = main_view.getSize();
+        vec center = main_view.getCenter();
+        vec tl = center - dim / 2;
+        vec br = tl + dim;
+
+        vector<HexCoords> result;
+
+        ctl = HexCoords::from_pixel(w, tl);
+        cbr = HexCoords::from_pixel(w, br);
+        for (int i = ctl.get_offset().x - 1; i <= cbr.get_offset().x + 1; i++) {
+            for (int j = ctl.get_offset().y - 1; j <= cbr.get_offset().y + 1; j++) {
+                result.push_back(HexCoords::from_offset(i, j));
+            }
+        }
+        return result;
     }
 };
 
@@ -298,38 +325,17 @@ class MainLoop : public Component {
     }
 
     void go() {
-        main_view->update();
-
         auto& wref = window->get();
         HexCoords yolo;
         scalar w = 144;
 
-        vector<HexCoords> hexes_to_draw;
-
-        vec tl(79, 37);
-        vec dim(800, 500);
-        // rectangle
-        auto draw_rect = [dim, w, &hexes_to_draw, this](vec tl) {
-            hexes_to_draw.clear();
-            vec br = tl + dim;
-            auto ctl = HexCoords::from_pixel(w, tl);
-            auto cbr = HexCoords::from_pixel(w, br);
-            for (int i = ctl.get_offset().x - 1; i <= cbr.get_offset().x + 1; i++) {
-                for (int j = ctl.get_offset().y - 1; j <= cbr.get_offset().y + 1; j++) {
-                    hexes_to_draw.push_back(HexCoords::from_offset(i, j));
-                }
-            }
-            terrain->load(w, hexes_to_draw);
-        };
+        main_view->update(w);
 
         bool toggle_grid = true;
-        grid->load(w, hexes_to_draw, yolo, toggle_grid);
 
-        sf::RectangleShape rect(dim);
-        rect.setFillColor(sf::Color::Transparent);
-        rect.setOutlineThickness(5);
-        rect.setPosition(tl);
-        draw_rect(tl);
+        auto hexes_to_draw = main_view->get_visible_coords(w);
+        terrain->load(w, hexes_to_draw);
+        grid->load(w, hexes_to_draw, yolo, toggle_grid);
 
         while (wref.isOpen()) {
             sf::Event event;
@@ -337,24 +343,28 @@ class MainLoop : public Component {
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
                     toggle_grid = !toggle_grid;
                     grid->load(w, hexes_to_draw, yolo, toggle_grid);
+
                 } else if (event.type == sf::Event::MouseButtonPressed and
                            event.mouseButton.button == sf::Mouse::Right) {
                     vec pos = main_view->get_mouse_position();
                     yolo = HexCoords::from_pixel(w, pos);
-                    draw_rect(pos);
                     grid->load(w, hexes_to_draw, yolo, toggle_grid);
-                    rect.setPosition(pos);
-                } else if (!window->process_events(event))
+
+                } else if (!window->process_events(event)) {
                     main_view->process_events(event);
+                }
             }
-            main_view->update();
+            if (main_view->update(w)) {
+                hexes_to_draw = main_view->get_visible_coords(w);
+                terrain->load(w, hexes_to_draw);
+                grid->load(w, hexes_to_draw, yolo, toggle_grid);
+                // cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
+            }
             wref.clear();
 
             // tile map
             wref.draw(*terrain);
             wref.draw(*grid);
-
-            wref.draw(rect);
 
             // origin
             sf::CircleShape origin(5);
