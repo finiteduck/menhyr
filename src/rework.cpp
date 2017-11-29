@@ -64,7 +64,7 @@ class TileMap : public GameObject {
 
 /*
 ====================================================================================================
-  ~*~ Window ~*~
+  ~*~ HexGrid ~*~
 ==================================================================================================*/
 class HexGrid : public GameObject {
     vector<sf::CircleShape> hexes;
@@ -144,6 +144,8 @@ class Person : public GameObject {
     sf::Texture person_texture, clothes_texture;
     sf::Sprite person_sprite, clothes_sprite;
 
+    HexCoords hex;
+    scalar w;
     sf::Vector2f target{1350, 625};
     float speed{25};  // in px/s
 
@@ -155,19 +157,31 @@ class Person : public GameObject {
     }
 
   public:
-    Person() {
+    Person(scalar w) : w(w) {
         int number = rand() % 3 + 1;
         person_texture.loadFromFile("png/people" + std::to_string(number) + ".png");
         person_sprite.setTexture(person_texture);
-        // person_sprite.setColor(sf::Color(240, 230, 230));
+        person_sprite.setColor(sf::Color(240, 230, 230));
+        vec origin(person_sprite.getLocalBounds().width / 2,
+                   person_sprite.getLocalBounds().height / 2);
+        person_sprite.setOrigin(origin);
         clothes_texture.loadFromFile("png/clothes" + std::to_string(number) + ".png");
         clothes_sprite.setTexture(clothes_texture);
-        clothes_sprite.setColor(sf::Color(rand() % 256, rand() % 256, rand() % 256));
+        clothes_sprite.setColor(sf::Color(50 + rand() % 100, 50 + rand() % 100, 150 + rand() % 50));
+        clothes_sprite.setOrigin(origin);
     }
 
-    void teleport_to(const sf::Vector2f& position) {
-        setPosition(position);
-        target = position;
+    void teleport_to(const HexCoords& position) {
+        vec pixel_pos = position.random_pixel(w, 0.8);
+        setPosition(pixel_pos);
+        target = pixel_pos;
+        hex = position;
+    }
+
+    void go_to(const HexCoords& position) {
+        target = position.random_pixel(w, 0.8);
+        hex = position;
+        speed = 50;
     }
 
     void animate(float elapsed_time) override {
@@ -178,7 +192,8 @@ class Person : public GameObject {
             auto move = path * (speed * elapsed_time / length_path);
             setPosition(before_pos + move);
         } else {  // if destination reached, choose another target
-            target = before_pos + sf::Vector2f(rand() % 250 - 125, rand() % 250 - 125);
+            speed = 10;
+            target = hex.random_pixel(w, 0.8);
         }
     }
 };
@@ -293,6 +308,10 @@ class MainLoop : public Component {
         terrain->map->set(HexCoords::from_offset(5, 5), 7);
 
         vector<unique_ptr<Person>> persons;
+        for (int i = 0; i < 7; i++) {
+            persons.emplace_back(new Person(w));
+            persons.back()->teleport_to(HexCoords(0, 0, 0));
+        }
 
         auto hexes_to_draw = main_view->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
@@ -312,9 +331,9 @@ class MainLoop : public Component {
                     vec pos = main_view->get_mouse_position();
                     cursor_coords = HexCoords::from_pixel(w, pos);
                     grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-
-                    persons.emplace_back(new Person);
-                    persons.back()->teleport_to(pos);
+                    for (auto& p : persons) {
+                        p->go_to(cursor_coords);
+                    }
 
                 } else if (!window->process_events(event)) {
                     main_view->process_events(event);

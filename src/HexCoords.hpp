@@ -56,6 +56,18 @@ class HexCoords {
         }
     }
 
+    vec random_pixel(scalar w, scalar tuning = 1.0) const {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(0.0, 1.0);
+
+        scalar aw = sqrt(3) * w / 4.0;  // adjusted w
+        scalar r = dis(gen) * aw * aw;
+        scalar theta = dis(gen) * 2 * M_PI;
+        vec center = get_pixel(w);
+        return center + vec(tuning * sqrt(r) * cos(theta), tuning * sqrt(r) * sin(theta));
+    }
+
     bool operator==(const HexCoords& other) const {
         return x == other.x && y == other.y && z == other.z;
     }

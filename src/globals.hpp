@@ -18,6 +18,7 @@
 
 #include <math.h>
 #include <SFML/Graphics.hpp>
+#include <random>
 #include <unordered_map>
 #include "tinycompo.hpp"
 
