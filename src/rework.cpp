@@ -1,90 +1,4 @@
-#include <math.h>
-#include <SFML/Graphics.hpp>
-#include <unordered_map>
-#include "tinycompo.hpp"
-
-using namespace std;
-using namespace tc;
-using vec = sf::Vector2f;
-using ivec = sf::Vector2i;
-using cube = sf::Vector3i;
-using scalar = float;
-
-/*
-====================================================================================================
-  ~*~ Global defs and interfaces ~*~
-==================================================================================================*/
-struct GameObject : public sf::Drawable, public sf::Transformable, public Component {
-    virtual void animate(scalar) {}
-};
-
-vec operator/(vec v, scalar s) { return vec(v.x / s, v.y / s); }
-
-/*
-====================================================================================================
-  ~*~ HexCoords ~*~
-==================================================================================================*/
-class HexCoords {
-    int x{0}, y{0}, z{0};
-    friend std::hash<HexCoords>;
-
-  public:
-    HexCoords() = default;
-    HexCoords(int x, int y, int z) : x(x), y(y), z(z) {}
-    HexCoords(cube c) : x(c.x), y(c.y), z(c.z) {}
-
-    ivec get_axial() const { return ivec(x, y); }
-    cube get_cube() const { return cube(x, y, z); }
-    vec get_pixel(int w) const { return vec((x + float(y) / 2) * w, float(y) * w * sqrt(3) / 2); }
-    ivec get_offset() const { return ivec(get_axial().x + (get_axial().y >> 1), get_axial().y); }
-
-    bool operator==(const HexCoords& other) {
-        return x == other.x and y == other.y and z == other.z;
-    }
-
-    static HexCoords from_axial(ivec v) { return HexCoords(v.x, v.y, -v.x - v.y); }
-    static HexCoords from_axial(int x, int y) { return HexCoords(x, y, -x - y); }
-    static HexCoords from_offset(int x, int y) { return HexCoords::from_axial(x - (y >> 1), y); }
-
-    static HexCoords from_pixel(float w, float x, float y) {
-        scalar fx((x - y / sqrt(3)) / w), fy(y * 2 / (sqrt(3) * w)), fz(-fx - fy);
-        scalar rx(round(fx)), ry(round(fy)), rz(round(fz));
-        scalar dx(abs(fx - rx)), dy(abs(fy - ry)), dz(abs(fz - rz));
-        if (dx > dy and dx > dz) {
-            return HexCoords(-ry - rz, ry, rz);
-        } else if (dy > dz) {
-            return HexCoords(rx, -rx - rz, rz);
-        } else {
-            return HexCoords(rx, ry, -rx - ry);
-        }
-    }
-    static HexCoords from_pixel(float w, vec v) { return from_pixel(w, v.x, v.y); }
-
-    static HexCoords from_cube(cube c) { return HexCoords(c); }
-    static HexCoords from_cube(int x, int y, int z) { return HexCoords(x, y, z); }
-
-    bool operator==(const HexCoords& other) const {
-        return x == other.x && y == other.y && z == other.z;
-    }
-};
-
-ostream& operator<<(ostream& os, HexCoords c) {
-    os << '(' << c.get_axial().x << ", " << c.get_axial().y << ')';
-    return os;
-}
-
-namespace std {
-    template <>
-    struct hash<HexCoords> {
-        size_t operator()(const HexCoords& key) const {
-            size_t result = 17;
-            result = result * 79 + hash<int>()(key.x);
-            result = result * 79 + hash<int>()(key.y);
-            result = result * 79 + hash<int>()(key.z);
-            return result;
-        }
-    };
-}  // namespace std
+#include "HexCoords.hpp"
 
 /*
 ====================================================================================================
@@ -92,13 +6,13 @@ namespace std {
 ==================================================================================================*/
 class TerrainMap : public Component {
     using TileType = int;
-    unordered_map<HexCoords, TileType> map;
+    std::unordered_map<HexCoords, TileType> map;
 
   public:
     TileType get(const HexCoords& coords) {
         auto it = map.find(coords);
         if (it == map.end()) {
-            map.insert(make_pair(coords, rand() % 7));
+            map.insert(std::make_pair(coords, rand() % 7));
             return map.at(coords);
         } else {
             return it->second;
@@ -249,10 +163,10 @@ class Person : public GameObject {
   public:
     Person() {
         int number = rand() % 3 + 1;
-        person_texture.loadFromFile("png/people" + to_string(number) + ".png");
+        person_texture.loadFromFile("png/people" + std::to_string(number) + ".png");
         person_sprite.setTexture(person_texture);
         // person_sprite.setColor(sf::Color(240, 230, 230));
-        clothes_texture.loadFromFile("png/clothes" + to_string(number) + ".png");
+        clothes_texture.loadFromFile("png/clothes" + std::to_string(number) + ".png");
         clothes_sprite.setTexture(clothes_texture);
         clothes_sprite.setColor(sf::Color(rand() % 256, rand() % 256, rand() % 256));
     }

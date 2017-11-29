@@ -5,11 +5,11 @@ all: test_bin rework_bin
 src/tinycompo.hpp:
 	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > $@
 
-%_bin: src/%.cpp src/tinycompo.hpp
+%_bin: src/%.cpp src/tinycompo.hpp src/*.hpp
 	$(CXX) $< -o $@ -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++11
 
 format:
-	clang-format -i src/test.cpp src/rework.cpp
+	clang-format -i src/*.cpp src/*.hpp
 
 test: test_bin
 	./$<
