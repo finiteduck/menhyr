@@ -319,7 +319,8 @@ class GameView : public Component {
     bool update(scalar w) {
         if (mouse_pressed) {
             auto mouse_pos = window->get_mouse_position();
-            main_view.move(mouse_x - mouse_pos.x, mouse_y - mouse_pos.y);
+            scalar zoom = main_view.getSize().x / window->width;
+            main_view.move((mouse_x - mouse_pos.x) * zoom, (mouse_y - mouse_pos.y) * zoom);
             window->set_view(main_view);
             mouse_x = mouse_pos.x;
             mouse_y = mouse_pos.y;
