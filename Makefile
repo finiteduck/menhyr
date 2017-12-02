@@ -1,6 +1,6 @@
 .PHONY: clean test
 
-all: test_bin rework_bin
+all: test_bin
 
 src/tinycompo.hpp:
 	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > $@
@@ -12,9 +12,6 @@ format:
 	clang-format -i src/*.cpp src/*.hpp
 
 test: test_bin
-	./$<
-
-rework: rework_bin
 	./$<
 
 ready: all format

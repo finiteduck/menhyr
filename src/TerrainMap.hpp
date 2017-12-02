@@ -13,8 +13,7 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
-#ifndef TERRAIN_MAP_HPP
-#define TERRAIN_MAP_HPP
+#pragma once
 
 #include "HexCoords.hpp"
 
@@ -39,5 +38,3 @@ class TerrainMap : public Component {
 
     void set(const HexCoords& coords, TileType type) { map[coords] = type; }
 };
-
-#endif  // TERRAIN_MAP_HPP

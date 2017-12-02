@@ -13,8 +13,7 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
-#ifndef HEX_COORDS_HPP
-#define HEX_COORDS_HPP
+#pragma once
 
 #include "globals.hpp"
 
@@ -98,5 +97,3 @@ namespace std {
         }
     };
 }  // namespace std
-
-#endif  // HEX_COORDS_HPP

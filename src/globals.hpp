@@ -13,8 +13,7 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
-#ifndef GLOBALS_HPP
-#define GLOBALS_HPP
+#pragma once
 
 #include <math.h>
 #include <SFML/Graphics.hpp>
@@ -49,5 +48,3 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public tc::Co
   ~*~ vector operators ~*~
 ==================================================================================================*/
 vec operator/(vec v, scalar s) { return vec(v.x / s, v.y / s); }
-
-#endif  // GLOBALS_HPP
