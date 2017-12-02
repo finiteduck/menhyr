@@ -37,7 +37,7 @@ class Window : public Component {
 
     sf::Vector2i get_mouse_position() { return sf::Mouse::getPosition(window); }
 
-    bool process_events(sf::Event& event) {
+    bool process_event(sf::Event& event) {
         if (event.type == sf::Event::Closed) {
             window.close();
         } else {
@@ -66,7 +66,7 @@ class GameView : public Component {
         port("window", &GameView::window);
     }
 
-    bool process_events(sf::Event& event) {
+    bool process_event(sf::Event& event) {
         if (event.type == sf::Event::MouseButtonPressed and
             event.mouseButton.button == sf::Mouse::Left) {
             mouse_pressed = true;
@@ -132,82 +132,120 @@ class GameView : public Component {
 
 /*
 ====================================================================================================
-  ~*~ MainLoop ~*~
+  ~*~ MainMode ~*~
+  A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
-class MainLoop : public Component {
+class MainMode : public Component {
+    HexCoords cursor_coords;
+    bool toggle_grid{true};
+    scalar w = 144;
+    vector<HexCoords> hexes_to_draw;
+    vector<unique_ptr<Person>> persons;
+
+    vector<unique_ptr<Person>>* provide_persons() { return &persons; }
+
     Window* window;
     GameView* main_view;
     TileMap* terrain;
     HexGrid* grid;
 
   public:
-    MainLoop() {
-        port("window", &MainLoop::window);
-        port("view", &MainLoop::main_view);
-        port("terrain", &MainLoop::terrain);
-        port("grid", &MainLoop::grid);
-        port("go", &MainLoop::go);
+    MainMode() {
+        provide("persons", &MainMode::provide_persons);
+        port("window", &MainMode::window);
+        port("view", &MainMode::main_view);
+        port("terrain", &MainMode::terrain);
+        port("grid", &MainMode::grid);
     }
 
-    void go() {
-        auto& wref = window->get();
-        HexCoords cursor_coords;
-        bool toggle_grid = true;
-        scalar w = 144;
-
+    void load() {
         main_view->update(w);
         terrain->map->set(HexCoords::from_offset(5, 5), 7);
-
-        vector<unique_ptr<Person>> persons;
-        for (int i = 0; i < 7; i++) {
-            persons.emplace_back(new Person(w));
-            persons.back()->teleport_to(HexCoords(0, 0, 0));
-        }
 
         auto hexes_to_draw = main_view->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
         grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
+        for (int i = 0; i < 7; i++) {
+            persons.emplace_back(new Person(w));
+            persons.back()->teleport_to(HexCoords(0, 0, 0));
+        }
+    }
+
+    bool process_event(sf::Event event) {
+        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
+            toggle_grid = !toggle_grid;
+            grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+
+        } else if (event.type == sf::Event::MouseButtonPressed and
+                   event.mouseButton.button == sf::Mouse::Right) {
+            vec pos = main_view->get_mouse_position();
+            cursor_coords = HexCoords::from_pixel(w, pos);
+            grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+            for (auto& p : persons) {
+                p->go_to(cursor_coords);
+            }
+
+        } else if (!window->process_event(event)) {
+            main_view->process_event(event);
+        }
+
+        return window->process_event(event) and main_view->process_event(event);
+    }
+
+    void before_draw(sf::Time elapsed_time) {
+        if (main_view->update(w)) {
+            hexes_to_draw = main_view->get_visible_coords(w);
+            terrain->load(w, hexes_to_draw);
+            grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+            // cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
+        }
+
+        for (auto& person : persons) {
+            person->animate(elapsed_time.asSeconds());
+        }
+
+        sort(persons.begin(), persons.end(), [](unique_ptr<Person>& p1, unique_ptr<Person>& p2) {
+            return p1->getPosition().y < p2->getPosition().y;
+        });
+    }
+};
+
+/*
+====================================================================================================
+  ~*~ MainLoop ~*~
+==================================================================================================*/
+class MainLoop : public Component {
+    MainMode* main_mode;
+    Window* window;
+    vector<sf::Drawable*> objects;
+
+    void add_object(sf::Drawable* ptr) { objects.push_back(ptr); }
+
+  public:
+    MainLoop() {
+        port("window", &MainLoop::window);
+        port("main_mode", &MainLoop::main_mode);
+        port("go", &MainLoop::go);
+    }
+
+    void go() {
+        auto& wref = window->get();
+
         sf::Clock clock;
         while (wref.isOpen()) {
-            sf::Time elapsed_time = clock.restart();
             sf::Event event;
             while (wref.pollEvent(event)) {
-                if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
-                    toggle_grid = !toggle_grid;
-                    grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-
-                } else if (event.type == sf::Event::MouseButtonPressed and
-                           event.mouseButton.button == sf::Mouse::Right) {
-                    vec pos = main_view->get_mouse_position();
-                    cursor_coords = HexCoords::from_pixel(w, pos);
-                    grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-                    for (auto& p : persons) {
-                        p->go_to(cursor_coords);
-                    }
-
-                } else if (!window->process_events(event)) {
-                    main_view->process_events(event);
-                }
+                main_mode->process_event(event);
             }
-            if (main_view->update(w)) {
-                hexes_to_draw = main_view->get_visible_coords(w);
-                terrain->load(w, hexes_to_draw);
-                grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-                // cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
-            }
+
+            sf::Time elapsed_time = clock.restart();
+            main_mode->before_draw(elapsed_time);
+
             wref.clear();
 
-            // tile map
-            wref.draw(*terrain);
-            wref.draw(*grid);
-            sort(persons.begin(), persons.end(),
-                 [](unique_ptr<Person>& p1, unique_ptr<Person>& p2) {
-                     return p1->getPosition().y < p2->getPosition().y;
-                 });
-            for (auto& person : persons) {
-                person->animate(elapsed_time.asSeconds());
-                wref.draw(*person);
+            for (auto& o : objects) {
+                wref.draw(*o);
             }
 
             // origin
@@ -220,6 +258,10 @@ class MainLoop : public Component {
             wref.display();
         }
     }
+};
+
+struct UseObjectVector {
+    static void connect(Assembly& assembly, tc::PortAddress user, tc::PortAddress provider) {}
 };
 
 /*
