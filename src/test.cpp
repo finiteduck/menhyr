@@ -14,98 +14,10 @@
   not, see <http://www.gnu.org/licenses/>.*/
 
 #include "HexCoords.hpp"
+#include "HexGrid.hpp"
 #include "Person.hpp"
 #include "TerrainMap.hpp"
-
-/*
-====================================================================================================
-  ~*~ TileMap ~*~
-==================================================================================================*/
-class TileMap : public GameObject {
-    sf::Texture tileset;
-    sf::VertexArray array;
-
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        states.transform *= getTransform();
-        states.texture = &tileset;
-        target.draw(array, states);
-    }
-
-  public:
-    TerrainMap* map;
-
-    TileMap() { port("map", &TileMap::map); }
-
-    void load(double w, const vector<HexCoords>& coords) {
-        tileset.loadFromFile("png/alltiles.png");
-        array.setPrimitiveType(sf::Quads);
-        array.resize(coords.size() * 4);
-
-        for (size_t i = 0; i < coords.size(); i++) {
-            auto hex_coords = coords.at(i);
-            sf::Vertex* quad = &array[i * 4];
-            vec tile_dim{258, 193};
-            vec tile_center{109, 88};
-            vec hex_center = hex_coords.get_pixel(w);
-            vec tl = hex_center - tile_center;
-            vec br = tl + tile_dim;
-            int tile_type = map->get(hex_coords);
-            vec tex_tl = vec{0, tile_type * tile_dim.y};
-            quad[0].position = tl;
-            quad[1].position = vec{br.x, tl.y};
-            quad[2].position = br;
-            quad[3].position = vec{tl.x, br.y};
-            quad[0].texCoords = tex_tl;
-            quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
-            quad[2].texCoords = tex_tl + tile_dim;
-            quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
-        }
-    }
-};
-
-/*
-====================================================================================================
-  ~*~ HexGrid ~*~
-==================================================================================================*/
-class HexGrid : public GameObject {
-    vector<sf::CircleShape> hexes;
-
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        states.transform *= getTransform();
-        for (auto hex : hexes) {
-            target.draw(hex, states);
-        }
-    }
-
-  public:
-    void highlight(float w, HexCoords coords) {
-        hexes.emplace_back(w / sqrt(3) - 3, 6);
-        auto& hex = hexes.back();
-        hex.setOrigin(hex.getRadius(), hex.getRadius());
-        hex.setPosition(coords.get_pixel(w));
-        hex.setFillColor(sf::Color(255, 0, 0, 15));
-    }
-
-    void load(float w, vector<HexCoords> coords, HexCoords cursor = HexCoords(0, 0, 0),
-              bool toggle_grid = true) {
-        hexes.clear();
-
-        highlight(w, cursor);
-
-        // rest of the grid
-        if (toggle_grid) {
-            for (auto c : coords) {
-                hexes.emplace_back(w / sqrt(3) - 3, 6);
-                auto& hex = hexes.back();
-                hex.setOrigin(hex.getRadius(), hex.getRadius());
-                hex.setFillColor(sf::Color(0, 0, 0, 0));
-                hex.setPosition(c.get_pixel(w));
-                hex.setOutlineColor(sf::Color(255, 255, 255, 15));
-                hex.setOutlineThickness(3);
-            }
-        }
-    }
-};
+#include "TileMap.hpp"
 
 /*
 ====================================================================================================
