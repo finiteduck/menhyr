@@ -156,6 +156,11 @@ class MainMode : public Component {
         port("view", &MainMode::main_view);
         port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
+
+        for (int i = 0; i < 7; i++) {
+            persons.emplace_back(new Person(w));
+            persons.back()->teleport_to(HexCoords(0, 0, 0));
+        }
     }
 
     void load() {
@@ -165,11 +170,6 @@ class MainMode : public Component {
         auto hexes_to_draw = main_view->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
         grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-
-        for (int i = 0; i < 7; i++) {
-            persons.emplace_back(new Person(w));
-            persons.back()->teleport_to(HexCoords(0, 0, 0));
-        }
     }
 
     bool process_event(sf::Event event) {
@@ -204,10 +204,6 @@ class MainMode : public Component {
         for (auto& person : persons) {
             person->animate(elapsed_time.asSeconds());
         }
-
-        sort(persons.begin(), persons.end(), [](unique_ptr<Person>& p1, unique_ptr<Person>& p2) {
-            return p1->getPosition().y < p2->getPosition().y;
-        });
     }
 };
 
@@ -218,15 +214,16 @@ class MainMode : public Component {
 class MainLoop : public Component {
     MainMode* main_mode;
     Window* window;
-    vector<sf::Drawable*> objects;
+    vector<GameObject*> objects;
 
-    void add_object(sf::Drawable* ptr) { objects.push_back(ptr); }
+    void add_object(GameObject* ptr) { objects.push_back(ptr); }
 
   public:
     MainLoop() {
         port("window", &MainLoop::window);
         port("main_mode", &MainLoop::main_mode);
         port("go", &MainLoop::go);
+        port("objects", &MainLoop::add_object);
     }
 
     void go() {
@@ -241,6 +238,11 @@ class MainLoop : public Component {
 
             sf::Time elapsed_time = clock.restart();
             main_mode->before_draw(elapsed_time);
+
+            sort(objects.begin(), objects.end(),
+                 [](GameObject* p1, GameObject* p2) {
+                     return p1->getPosition().y < p2->getPosition().y;
+                 });
 
             wref.clear();
 
@@ -260,8 +262,17 @@ class MainLoop : public Component {
     }
 };
 
+template <class ElemType>
 struct UseObjectVector {
-    static void connect(Assembly& assembly, tc::PortAddress user, tc::PortAddress provider) {}
+    static void _connect(Assembly& assembly, tc::PortAddress user, tc::PortAddress provider) {
+        auto& ref_user = assembly.at(user.address);
+        auto& ref_provider = assembly.at(provider.address);
+        vector<unique_ptr<ElemType>>& v_ref =
+            *ref_provider.template get<vector<unique_ptr<ElemType>>>(provider.prop);
+        for (auto& e : v_ref) {
+            ref_user.set(user.prop, dynamic_cast<GameObject*>(e.get()));
+        }
+    }
 };
 
 /*
@@ -274,9 +285,15 @@ int main() {
     Model model;
     model.component<MainLoop>("mainloop")
         .connect<Use<Window>>("window", "window")
-        .connect<Use<GameView>>("view", "mainview")
+        .connect<Use<MainMode>>("main_mode", "mainmode")
+        .connect<Use<GameObject>>("objects", "terrain")
+        .connect<Use<GameObject>>("objects", "grid")
+        .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"));
+    model.component<MainMode>("mainmode")
+        .connect<Use<Window>>("window", "window")
+        .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<TileMap>>("terrain", "terrain")
-        .connect<Use<HexGrid>>("grid", "grid");
+        .connect<Use<GameView>>("view", "mainview");
     model.component<Window>("window");
     model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
