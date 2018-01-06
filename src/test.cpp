@@ -15,6 +15,7 @@
 
 #include "HexCoords.hpp"
 #include "HexGrid.hpp"
+#include "Layer.hpp"
 #include "Person.hpp"
 #include "TerrainMap.hpp"
 #include "TileMap.hpp"
@@ -203,31 +204,6 @@ class MainMode : public Component {
 
         for (auto& person : persons) {
             person->animate(elapsed_time.asSeconds());
-        }
-    }
-};
-
-/*
-====================================================================================================
-  ~*~ Layer ~*~
-==================================================================================================*/
-class Layer : public sf::Drawable, public Component {
-    vector<GameObject*> objects;
-
-    void add_object(GameObject* ptr) { objects.push_back(ptr); }
-
-  public:
-    Layer() { port("objects", &Layer::add_object); }
-
-    void before_draw() {
-        sort(objects.begin(), objects.end(), [](GameObject* ptr1, GameObject* ptr2) {
-            return ptr1->getPosition().y < ptr2->getPosition().y;
-        });
-    }
-
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        for (auto& o : objects) {
-            target.draw(*o, states);
         }
     }
 };
