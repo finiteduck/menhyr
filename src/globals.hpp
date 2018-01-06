@@ -1,4 +1,4 @@
-/*Copyright Vincent Lanore 2017
+/*Copyright Vincent Lanore 2017-2018
 
   This file is part of Menhyr.
 
