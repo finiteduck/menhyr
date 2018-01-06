@@ -69,12 +69,12 @@ class GameView : public Component {
 
     bool process_event(sf::Event& event) {
         if (event.type == sf::Event::MouseButtonPressed and
-            event.mouseButton.button == sf::Mouse::Left) {
+            event.mouseButton.button == sf::Mouse::Middle) {
             mouse_pressed = true;
             mouse_x = event.mouseButton.x;
             mouse_y = event.mouseButton.y;
         } else if (event.type == sf::Event::MouseButtonReleased and
-                   event.mouseButton.button == sf::Mouse::Left) {
+                   event.mouseButton.button == sf::Mouse::Middle) {
             mouse_pressed = false;
         } else if (event.type == sf::Event::MouseWheelScrolled) {
             main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
