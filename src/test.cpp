@@ -209,21 +209,46 @@ class MainMode : public Component {
 
 /*
 ====================================================================================================
+  ~*~ Layer ~*~
+==================================================================================================*/
+class Layer : public sf::Drawable, public Component {
+    vector<GameObject*> objects;
+
+    void add_object(GameObject* ptr) { objects.push_back(ptr); }
+
+  public:
+    Layer() { port("objects", &Layer::add_object); }
+
+    void before_draw() {
+        sort(objects.begin(), objects.end(), [](GameObject* ptr1, GameObject* ptr2) {
+            return ptr1->getPosition().y < ptr2->getPosition().y;
+        });
+    }
+
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        for (auto& o : objects) {
+            target.draw(*o, states);
+        }
+    }
+};
+
+/*
+====================================================================================================
   ~*~ MainLoop ~*~
 ==================================================================================================*/
 class MainLoop : public Component {
     MainMode* main_mode;
     Window* window;
-    vector<GameObject*> objects;
+    vector<Layer*> layers;
 
-    void add_object(GameObject* ptr) { objects.push_back(ptr); }
+    void add_layer(Layer* ptr) { layers.push_back(ptr); }
 
   public:
     MainLoop() {
         port("window", &MainLoop::window);
         port("main_mode", &MainLoop::main_mode);
         port("go", &MainLoop::go);
-        port("objects", &MainLoop::add_object);
+        port("layers", &MainLoop::add_layer);
     }
 
     void go() {
@@ -239,15 +264,11 @@ class MainLoop : public Component {
             sf::Time elapsed_time = clock.restart();
             main_mode->before_draw(elapsed_time);
 
-            sort(objects.begin(), objects.end(),
-                 [](GameObject* p1, GameObject* p2) {
-                     return p1->getPosition().y < p2->getPosition().y;
-                 });
-
             wref.clear();
 
-            for (auto& o : objects) {
-                wref.draw(*o);
+            for (auto& l : layers) {
+                l->before_draw();
+                wref.draw(*l);
             }
 
             // origin
@@ -283,17 +304,25 @@ int main() {
     srand(time(NULL));
 
     Model model;
+
     model.component<MainLoop>("mainloop")
         .connect<Use<Window>>("window", "window")
         .connect<Use<MainMode>>("main_mode", "mainmode")
-        .connect<Use<GameObject>>("objects", "terrain")
-        .connect<Use<GameObject>>("objects", "grid")
+        .connect<Use<Layer>>("layers", "terrainlayer")
+        .connect<Use<Layer>>("layers", "gridlayer")
+        .connect<Use<Layer>>("layers", "personlayer");
+
+    model.component<Layer>("terrainlayer").connect<Use<GameObject>>("objects", "terrain");
+    model.component<Layer>("gridlayer").connect<Use<GameObject>>("objects", "grid");
+    model.component<Layer>("personlayer")
         .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"));
+
     model.component<MainMode>("mainmode")
         .connect<Use<Window>>("window", "window")
         .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<TileMap>>("terrain", "terrain")
         .connect<Use<GameView>>("view", "mainview");
+
     model.component<Window>("window");
     model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
