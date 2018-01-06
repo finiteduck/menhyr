@@ -22,8 +22,6 @@
 class Layer : public sf::Drawable, public Component {
     vector<GameObject*> objects;
 
-    void add_object(GameObject* ptr) { objects.push_back(ptr); }
-
 public:
     Layer() { port("objects", &Layer::add_object); }
 
@@ -32,6 +30,8 @@ public:
                 return ptr1->getPosition().y < ptr2->getPosition().y;
             });
     }
+
+    void add_object(GameObject* ptr) { objects.push_back(ptr); }
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         for (auto& o : objects) {

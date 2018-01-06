@@ -136,12 +136,34 @@ class GameView : public Component {
   ~*~ MainMode ~*~
   A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
+class Menhir : public GameObject {
+    sf::Texture texture;
+    sf::Sprite sprite;
+    HexCoords hex;
+    scalar w;
+
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        target.draw(sprite, states);
+    }
+
+  public:
+    Menhir(scalar w, HexCoords hex = HexCoords()) : hex(hex), w(w) {
+        texture.loadFromFile("png/menhir.png");
+        sprite.setTexture(texture);
+        vec origin(sprite.getLocalBounds().width / 2, sprite.getLocalBounds().height / 2);
+        sprite.setOrigin(origin);
+        setPosition(hex.get_pixel(w));
+    }
+};
+
 class MainMode : public Component {
     HexCoords cursor_coords;
     bool toggle_grid{true};
     scalar w = 144;
     vector<HexCoords> hexes_to_draw;
     vector<unique_ptr<Person>> persons;
+    vector<unique_ptr<Menhir>> menhirs;
 
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
 
@@ -149,6 +171,7 @@ class MainMode : public Component {
     GameView* main_view;
     TileMap* terrain;
     HexGrid* grid;
+    Layer* person_layer;  // TODO find better name
 
   public:
     MainMode() {
@@ -157,6 +180,7 @@ class MainMode : public Component {
         port("view", &MainMode::main_view);
         port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
+        port("layer", &MainMode::person_layer);
 
         for (int i = 0; i < 7; i++) {
             persons.emplace_back(new Person(w));
@@ -186,7 +210,13 @@ class MainMode : public Component {
             for (auto& p : persons) {
                 p->go_to(cursor_coords);
             }
-
+        } else if (event.type == sf::Event::MouseButtonPressed and
+                   event.mouseButton.button == sf::Mouse::Left) {
+            vec pos = main_view->get_mouse_position();
+            cursor_coords = HexCoords::from_pixel(w, pos);
+            menhirs.emplace_back(new Menhir(w, cursor_coords));
+            person_layer->add_object(menhirs.back().get());
+            std::cout << "Created menhir at coordinates " << cursor_coords << "\n";
         } else if (!window->process_event(event)) {
             main_view->process_event(event);
         }
@@ -297,7 +327,8 @@ int main() {
         .connect<Use<Window>>("window", "window")
         .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<TileMap>>("terrain", "terrain")
-        .connect<Use<GameView>>("view", "mainview");
+        .connect<Use<GameView>>("view", "mainview")
+        .connect<Use<Layer>>("layer", "personlayer");
 
     model.component<Window>("window");
     model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
