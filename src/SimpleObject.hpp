@@ -1,3 +1,5 @@
+#pragma once
+
 #include "HexCoords.hpp"
 #include "globals.hpp"
 

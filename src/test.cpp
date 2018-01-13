@@ -16,10 +16,9 @@
 #include "HexCoords.hpp"
 #include "HexGrid.hpp"
 #include "Layer.hpp"
-#include "Person.hpp"
-#include "SimpleObject.hpp"
 #include "TerrainMap.hpp"
 #include "TileMap.hpp"
+#include "game_objects.hpp"
 
 /*
 ====================================================================================================
@@ -137,28 +136,6 @@ class GameView : public Component {
   ~*~ MainMode ~*~
   A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
-class Faith : public SimpleObject {
-    vec target{0, 0};
-    scalar speed{100}, rotation_speed{15};
-
-  public:
-    Faith(scalar w, HexCoords hex = HexCoords()) : SimpleObject(w, "png/faith.png", hex) {}
-
-    void set_target(vec new_target) { target = new_target; }
-
-    void animate(float elapsed_time) override {
-        auto before_pos = getPosition();
-        auto path = target - before_pos;
-        float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
-        if (length_path > 3) {
-            auto move = path * (speed * elapsed_time / length_path);
-            setPosition(before_pos + move);
-        }
-
-        setRotation(fmod(getRotation() + rotation_speed * elapsed_time, 360));
-    }
-};
-
 class MainMode : public Component {
     HexCoords cursor_coords;
     bool toggle_grid{true};

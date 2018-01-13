@@ -1,21 +1,32 @@
-/*Copyright Vincent Lanore 2017-2018
-
-  This file is part of Menhyr.
-
-  Menhyr is free software: you can redistribute it and/or modify it under the terms of the GNU
-  Lesser General Public License as published by the Free Software Foundation, either version 3 of
-  the License, or (at your option) any later version.
-
-  Menhyr is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
-  General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
-  not, see <http://www.gnu.org/licenses/>.*/
-
 #pragma once
 
-#include "HexCoords.hpp"
+#include "SimpleObject.hpp"
+
+/*
+====================================================================================================
+  ~*~ Person Class ~*~
+==================================================================================================*/
+class Faith : public SimpleObject {
+    vec target{0, 0};
+    scalar speed{100}, rotation_speed{15};
+
+  public:
+    Faith(scalar w, HexCoords hex = HexCoords()) : SimpleObject(w, "png/faith.png", hex) {}
+
+    void set_target(vec new_target) { target = new_target; }
+
+    void animate(float elapsed_time) override {
+        auto before_pos = getPosition();
+        auto path = target - before_pos;
+        float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
+        if (length_path > 3) {
+            auto move = path * (speed * elapsed_time / length_path);
+            setPosition(before_pos + move);
+        }
+
+        setRotation(fmod(getRotation() + rotation_speed * elapsed_time, 360));
+    }
+};
 
 /*
 ====================================================================================================
