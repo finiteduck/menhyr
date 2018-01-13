@@ -2,7 +2,7 @@
 
 #include "tinycompo.hpp"
 
-class GameObject;  // forward decl
+struct GameObject;  // forward decl
 
 template <class ElemType>
 struct UseObjectVector {
