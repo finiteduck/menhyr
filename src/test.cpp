@@ -161,7 +161,7 @@ class Faith : public GameObject {
     sf::Texture texture;
     sf::Sprite sprite;
     vec target{0, 0};
-    scalar speed{100};
+    scalar speed{100}, rotation_speed{15};
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -179,9 +179,7 @@ class Faith : public GameObject {
         setPosition(hex.get_pixel(w));
     }
 
-    void set_target(vec new_target) {
-        target = new_target;
-    }
+    void set_target(vec new_target) { target = new_target; }
 
     void animate(float elapsed_time) override {
         auto before_pos = getPosition();
@@ -191,6 +189,8 @@ class Faith : public GameObject {
             auto move = path * (speed * elapsed_time / length_path);
             setPosition(before_pos + move);
         }
+
+        setRotation(fmod(getRotation() + rotation_speed * elapsed_time, 360));
     }
 };
 
