@@ -137,13 +137,6 @@ class GameView : public Component {
   ~*~ MainMode ~*~
   A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
-class Menhir : public SimpleObject {
-    HexCoords hex;
-
-  public:
-    Menhir(scalar w, HexCoords hex = HexCoords()) : SimpleObject(w, "png/menhir.png", hex) {}
-};
-
 class Faith : public SimpleObject {
     vec target{0, 0};
     scalar speed{100}, rotation_speed{15};
@@ -172,7 +165,7 @@ class MainMode : public Component {
     scalar w = 144;
     vector<HexCoords> hexes_to_draw;
     vector<unique_ptr<Person>> persons;
-    vector<unique_ptr<Menhir>> menhirs;
+    vector<unique_ptr<SimpleObject>> menhirs;
     vector<unique_ptr<Faith>> faith;
 
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
@@ -224,7 +217,7 @@ class MainMode : public Component {
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Left) {
             cursor_coords = HexCoords::from_pixel(w, pos);
-            menhirs.emplace_back(new Menhir(w, cursor_coords));
+            menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", cursor_coords));
             person_layer->add_object(menhirs.back().get());
 
             faith.emplace_back(new Faith(w, cursor_coords));
