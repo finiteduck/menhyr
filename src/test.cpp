@@ -18,6 +18,7 @@
 #include "Layer.hpp"
 #include "TerrainMap.hpp"
 #include "TileMap.hpp"
+#include "connectors.hpp"
 #include "game_objects.hpp"
 
 /*
@@ -213,7 +214,7 @@ class MainMode : public Component {
             hexes_to_draw = main_view->get_visible_coords(w);
             terrain->load(w, hexes_to_draw);
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-            // cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
+            // std::cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
         }
 
         for (auto& person : persons) {
@@ -248,6 +249,8 @@ class MainLoop : public Component {
     void go() {
         auto& wref = window->get();
 
+        std::vector<scalar> frametimes;
+
         sf::Clock clock;
         while (wref.isOpen()) {
             sf::Event event;
@@ -256,6 +259,16 @@ class MainLoop : public Component {
             }
 
             sf::Time elapsed_time = clock.restart();
+            frametimes.push_back(elapsed_time.asSeconds());
+            if (frametimes.size() == 100) {
+                scalar total_time = 0;
+                for (auto t : frametimes) {
+                    total_time += t;
+                }
+                std::cout << 100 / total_time << " fps\n";
+                frametimes.clear();
+            }
+
             main_mode->before_draw(elapsed_time);
 
             wref.clear();
@@ -273,19 +286,6 @@ class MainLoop : public Component {
             wref.draw(origin);
 
             wref.display();
-        }
-    }
-};
-
-template <class ElemType>
-struct UseObjectVector {
-    static void _connect(Assembly& assembly, tc::PortAddress user, tc::PortAddress provider) {
-        auto& ref_user = assembly.at(user.address);
-        auto& ref_provider = assembly.at(provider.address);
-        vector<unique_ptr<ElemType>>& v_ref =
-            *ref_provider.template get<vector<unique_ptr<ElemType>>>(provider.prop);
-        for (auto& e : v_ref) {
-            ref_user.set(user.prop, dynamic_cast<GameObject*>(e.get()));
         }
     }
 };

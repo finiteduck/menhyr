@@ -13,8 +13,6 @@ class SimpleObject : public GameObject {
     }
 
   public:
-    SimpleObject() = default;
-
     SimpleObject(scalar w, std::string texture_path, HexCoords hex = HexCoords()) {
         texture.loadFromFile(texture_path);
         sprite.setTexture(texture);
