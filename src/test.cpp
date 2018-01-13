@@ -157,6 +157,43 @@ class Menhir : public GameObject {
     }
 };
 
+class Faith : public GameObject {
+    sf::Texture texture;
+    sf::Sprite sprite;
+    vec target{0, 0};
+    scalar speed{100};
+
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        target.draw(sprite, states);
+    }
+
+  public:
+    Faith() = default;
+
+    Faith(scalar w, HexCoords hex = HexCoords()) {
+        texture.loadFromFile("png/faith.png");
+        sprite.setTexture(texture);
+        vec origin(sprite.getLocalBounds().width / 2, sprite.getLocalBounds().height / 2);
+        sprite.setOrigin(origin);
+        setPosition(hex.get_pixel(w));
+    }
+
+    void set_target(vec new_target) {
+        target = new_target;
+    }
+
+    void animate(float elapsed_time) override {
+        auto before_pos = getPosition();
+        auto path = target - before_pos;
+        float length_path = sqrt(pow(path.x, 2) + pow(path.y, 2));
+        if (length_path > 3) {
+            auto move = path * (speed * elapsed_time / length_path);
+            setPosition(before_pos + move);
+        }
+    }
+};
+
 class MainMode : public Component {
     HexCoords cursor_coords;
     bool toggle_grid{true};
@@ -164,6 +201,7 @@ class MainMode : public Component {
     vector<HexCoords> hexes_to_draw;
     vector<unique_ptr<Person>> persons;
     vector<unique_ptr<Menhir>> menhirs;
+    vector<unique_ptr<Faith>> faith;
 
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
 
@@ -198,13 +236,14 @@ class MainMode : public Component {
     }
 
     bool process_event(sf::Event event) {
+        vec pos = main_view->get_mouse_position();
+
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
             toggle_grid = !toggle_grid;
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Right) {
-            vec pos = main_view->get_mouse_position();
             cursor_coords = HexCoords::from_pixel(w, pos);
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
             for (auto& p : persons) {
@@ -212,11 +251,13 @@ class MainMode : public Component {
             }
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Left) {
-            vec pos = main_view->get_mouse_position();
             cursor_coords = HexCoords::from_pixel(w, pos);
             menhirs.emplace_back(new Menhir(w, cursor_coords));
             person_layer->add_object(menhirs.back().get());
-            std::cout << "Created menhir at coordinates " << cursor_coords << "\n";
+
+            faith.emplace_back(new Faith(w, cursor_coords));
+            person_layer->add_object(faith.back().get());
+
         } else if (!window->process_event(event)) {
             main_view->process_event(event);
         }
@@ -225,6 +266,7 @@ class MainMode : public Component {
     }
 
     void before_draw(sf::Time elapsed_time) {
+        vec pos = main_view->get_mouse_position();
         if (main_view->update(w)) {
             hexes_to_draw = main_view->get_visible_coords(w);
             terrain->load(w, hexes_to_draw);
@@ -234,6 +276,10 @@ class MainMode : public Component {
 
         for (auto& person : persons) {
             person->animate(elapsed_time.asSeconds());
+        }
+        for (auto& f : faith) {
+            f->set_target(pos);
+            f->animate(elapsed_time.asSeconds());
         }
     }
 };

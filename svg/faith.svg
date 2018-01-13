@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="16.489212mm"
+   height="16.489212mm"
+   viewBox="0 0 58.426346 58.426342"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.92.1 r15371"
+   sodipodi:docname="faith.svg"
+   inkscape:export-filename="/home/ziltoid/git/menhyr/png/faith.png"
+   inkscape:export-xdpi="53.890129"
+   inkscape:export-ydpi="53.890129">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.8"
+     inkscape:cx="-17.949232"
+     inkscape:cy="7.5009606"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="2560"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Repère"
+     style="display:inline"
+     transform="translate(-186.35412,-334.67272)" />
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-186.35412,-334.67272)">
+    <g
+       id="g6239">
+      <circle
+         r="29.213171"
+         cy="363.88589"
+         cx="215.56729"
+         id="circle6233"
+         style="fill:#78fcf8;fill-opacity:0.08298753;stroke:none;stroke-width:1.6778847" />
+      <path
+         inkscape:transform-center-y="-2.569697"
+         inkscape:transform-center-x="0.10779831"
+         d="m 232.44966,386.26432 -20.73897,-18.32877 -12.15802,18.73886 11.02301,-25.38783 -21.57875,-5.77234 27.55156,2.63823 -1.17838,-22.30636 6.00479,27.01834 20.85047,-8.01375 -23.84039,14.06003 z"
+         inkscape:randomized="0"
+         inkscape:rounded="0"
+         inkscape:flatsided="false"
+         sodipodi:arg2="2.3441985"
+         sodipodi:arg1="0.9300126"
+         sodipodi:r2="5.7377715"
+         sodipodi:r1="27.986023"
+         sodipodi:cy="363.82996"
+         sodipodi:cx="215.71895"
+         sodipodi:sides="5"
+         id="path6227"
+         style="fill:#78fcf8;fill-opacity:1;stroke:none;stroke-width:0.75284362"
+         sodipodi:type="star" />
+      <circle
+         r="16.322546"
+         cy="363.88589"
+         cx="215.56729"
+         id="path6229"
+         style="fill:#78fcf8;fill-opacity:0.48962654;stroke:none;stroke-width:0.93750006" />
+      <circle
+         style="fill:#78fcf8;fill-opacity:0.48962654;stroke:none;stroke-width:0.4759616"
+         id="circle6231"
+         cx="215.56729"
+         cy="363.88589"
+         r="8.2868309" />
+    </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer3"
+     inkscape:label="Grille"
+     style="display:inline"
+     transform="translate(-190.51339,-135.75184)" />
+</svg>
