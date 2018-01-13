@@ -17,6 +17,7 @@
 #include "HexGrid.hpp"
 #include "Layer.hpp"
 #include "Person.hpp"
+#include "SimpleObject.hpp"
 #include "TerrainMap.hpp"
 #include "TileMap.hpp"
 
@@ -136,48 +137,19 @@ class GameView : public Component {
   ~*~ MainMode ~*~
   A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
-class Menhir : public GameObject {
-    sf::Texture texture;
-    sf::Sprite sprite;
+class Menhir : public SimpleObject {
     HexCoords hex;
-    scalar w;
-
-    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        states.transform *= getTransform();
-        target.draw(sprite, states);
-    }
 
   public:
-    Menhir(scalar w, HexCoords hex = HexCoords()) : hex(hex), w(w) {
-        texture.loadFromFile("png/menhir.png");
-        sprite.setTexture(texture);
-        vec origin(sprite.getLocalBounds().width / 2, sprite.getLocalBounds().height / 2);
-        sprite.setOrigin(origin);
-        setPosition(hex.get_pixel(w));
-    }
+    Menhir(scalar w, HexCoords hex = HexCoords()) : SimpleObject(w, "png/menhir.png", hex) {}
 };
 
-class Faith : public GameObject {
-    sf::Texture texture;
-    sf::Sprite sprite;
+class Faith : public SimpleObject {
     vec target{0, 0};
     scalar speed{100}, rotation_speed{15};
 
-    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        states.transform *= getTransform();
-        target.draw(sprite, states);
-    }
-
   public:
-    Faith() = default;
-
-    Faith(scalar w, HexCoords hex = HexCoords()) {
-        texture.loadFromFile("png/faith.png");
-        sprite.setTexture(texture);
-        vec origin(sprite.getLocalBounds().width / 2, sprite.getLocalBounds().height / 2);
-        sprite.setOrigin(origin);
-        setPosition(hex.get_pixel(w));
-    }
+    Faith(scalar w, HexCoords hex = HexCoords()) : SimpleObject(w, "png/faith.png", hex) {}
 
     void set_target(vec new_target) { target = new_target; }
 
