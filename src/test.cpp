@@ -154,6 +154,8 @@ class MainMode : public Component {
     HexGrid* grid;
     Layer* person_layer;  // TODO find better name
 
+    int selected_tool{1};
+
   public:
     MainMode() {
         provide("persons", &MainMode::provide_persons);
@@ -185,6 +187,18 @@ class MainMode : public Component {
             toggle_grid = !toggle_grid;
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
 
+        } else if (event.type == sf::Event::KeyPressed) {
+            switch (event.key.code) {
+                case sf::Keyboard::Num1:
+                    selected_tool = 1;
+                    break;
+                case sf::Keyboard::Num2:
+                    selected_tool = 2;
+                    break;
+                default:
+                    break;
+            }
+
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Right) {
             cursor_coords = HexCoords::from_pixel(w, pos);
@@ -192,14 +206,17 @@ class MainMode : public Component {
             for (auto& p : persons) {
                 p->go_to(cursor_coords);
             }
+
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Left) {
             cursor_coords = HexCoords::from_pixel(w, pos);
-            menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", cursor_coords));
-            person_layer->add_object(menhirs.back().get());
-
-            faith.emplace_back(new Faith(w, cursor_coords));
-            person_layer->add_object(faith.back().get());
+            if (selected_tool == 1) {
+                menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", cursor_coords));
+                person_layer->add_object(menhirs.back().get());
+            } else if (selected_tool == 2) {
+                faith.emplace_back(new Faith(w, cursor_coords));
+                person_layer->add_object(faith.back().get());
+            }
 
         } else if (!window->process_event(event)) {
             main_view->process_event(event);
