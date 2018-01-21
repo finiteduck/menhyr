@@ -168,6 +168,17 @@ class ViewController : public Component {
         button2.setFillColor(sf::Color(255, 255, 255, 50));
         button2.setPosition(wdim.x / 2 - 105, wdim.y - 110);
         wref.draw(button2);
+
+        SimpleObject menhir(144, "png/menhir.png");
+        auto& menhir_sprite = menhir.get_sprite();
+        menhir_sprite.setPosition(wdim.x / 2 - 55, wdim.y - 60);
+        menhir_sprite.setScale(0.75, 0.75);
+        wref.draw(menhir_sprite);
+
+        SimpleObject faith(144, "png/faith.png");
+        auto& faith_sprite = faith.get_sprite();
+        faith_sprite.setPosition(wdim.x / 2 + 55, wdim.y - 60);
+        wref.draw(faith_sprite);
     }
 };
 

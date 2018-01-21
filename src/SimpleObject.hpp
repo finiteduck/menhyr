@@ -20,4 +20,6 @@ class SimpleObject : public GameObject {
         sprite.setOrigin(origin);
         setPosition(hex.get_pixel(w));
     }
+
+    sf::Sprite& get_sprite() { return sprite; }
 };
