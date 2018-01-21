@@ -37,8 +37,6 @@ class Window : public Component {
 
     void set_view(const sf::View& view) { window.setView(view); }
 
-    void default_view() { window.setView(window.getDefaultView()); }
-
     sf::Vector2i get_mouse_position() { return sf::Mouse::getPosition(window); }
 
     bool process_event(sf::Event& event) {
@@ -60,14 +58,18 @@ class Window : public Component {
 class ViewController : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
-    sf::View main_view;
+    sf::View main_view, interface_view;
     HexCoords ctl, cbr;
 
     Window* window;
 
   public:
-    ViewController() : main_view(sf::FloatRect(-200, -200, 1300, 800)) {
-        port("window", &ViewController::window);
+    ViewController() { port("window", &ViewController::window); }
+
+    void init() {
+        main_view = window->get().getDefaultView();
+        main_view.move(-300, -300);
+        interface_view = window->get().getDefaultView();
     }
 
     bool process_event(sf::Event& event) {
@@ -84,6 +86,8 @@ class ViewController : public Component {
         } else if (event.type == sf::Event::Resized) {
             scalar zoom = main_view.getSize().x / window->width;
             main_view.setSize(zoom * event.size.width, zoom * event.size.height);
+            interface_view.setSize(zoom * event.size.width, zoom * event.size.height);
+            interface_view.setCenter(interface_view.getSize() / 2);
             window->width = event.size.width;
             window->height = event.size.height;  // unused for now but might as well update it
         } else {
@@ -94,7 +98,7 @@ class ViewController : public Component {
 
     void set_main() { window->set_view(main_view); }
 
-    void set_interface() { window->default_view(); }
+    void set_interface() { window->set_view(interface_view); }
 
     sf::RenderWindow& get_draw_ref() { return window->get(); }
 
@@ -270,11 +274,15 @@ class MainLoop : public Component {
 
     void go() {
         auto& wref = view_controller->get_draw_ref();
+        view_controller->init();
 
         std::vector<scalar> frametimes;
 
         sf::Clock clock;
+        scalar fps = 0;
         while (wref.isOpen()) {
+            view_controller->set_main();
+
             sf::Event event;
             while (wref.pollEvent(event)) {
                 main_mode->process_event(event);
@@ -287,7 +295,7 @@ class MainLoop : public Component {
                 for (auto t : frametimes) {
                     total_time += t;
                 }
-                std::cout << 100 / total_time << " fps\n";
+                fps = 100 / total_time;
                 frametimes.clear();
             }
 
@@ -308,11 +316,16 @@ class MainLoop : public Component {
             wref.draw(origin);
 
             view_controller->set_interface();
-            sf::CircleShape test(10);
-            test.setFillColor(sf::Color::Blue);
-            test.setPosition(20, 20);
-            wref.draw(test);
-            view_controller->set_main();
+            sf::Text text;
+            // select the font
+            sf::Font font;
+            font.loadFromFile("DejaVuSans.ttf");
+            text.setFont(font);
+            text.setString(std::to_string((int)floor(fps + 0.5f)));
+            text.setCharacterSize(24);
+            text.setFillColor(sf::Color(255, 255, 255, 100));
+            text.setStyle(sf::Text::Bold);
+            wref.draw(text);
 
             wref.display();
         }
