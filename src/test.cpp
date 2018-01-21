@@ -144,6 +144,8 @@ class ViewController : public Component {
         return result;
     }
 
+    int select{1};
+
     void draw_interface(scalar fps) {
         set_interface();
         auto& wref = window->get();
@@ -168,6 +170,17 @@ class ViewController : public Component {
         button2.setFillColor(sf::Color(255, 255, 255, 50));
         button2.setPosition(wdim.x / 2 - 105, wdim.y - 110);
         wref.draw(button2);
+
+        sf::RectangleShape selector(vec(110, 110));
+        selector.setFillColor(sf::Color(255, 255, 255, 0));
+        selector.setOutlineColor(sf::Color::Red);
+        selector.setOutlineThickness(2);
+        if (select == 1) {
+            selector.setPosition(wdim.x / 2 - 110, wdim.y - 115);
+        } else {
+            selector.setPosition(wdim.x / 2, wdim.y - 115);
+        }
+        wref.draw(selector);
 
         SimpleObject menhir(144, "png/menhir.png");
         auto& menhir_sprite = menhir.get_sprite();
@@ -241,9 +254,11 @@ class MainMode : public Component {
             switch (event.key.code) {
                 case sf::Keyboard::Num1:
                     selected_tool = 1;
+                    view_controller->select = 1;
                     break;
                 case sf::Keyboard::Num2:
                     selected_tool = 2;
+                    view_controller->select = 2;
                     break;
                 default:
                     break;
