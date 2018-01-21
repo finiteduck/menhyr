@@ -33,7 +33,7 @@ class Window : public Component {
     sf::RenderWindow window;
 
   public:
-    Window() : window(sf::VideoMode(width, height), "Menhyr") { window.setFramerateLimit(60); }
+    Window() : window(sf::VideoMode(width, height), "Menhyr") { window.setFramerateLimit(120); }
 
     void set_view(const sf::View& view) { window.setView(view); }
 
@@ -142,6 +142,32 @@ class ViewController : public Component {
             }
         }
         return result;
+    }
+
+    void draw_interface(scalar fps) {
+        set_interface();
+        auto& wref = window->get();
+
+        sf::Text text;
+        sf::Font font;
+        font.loadFromFile("DejaVuSans.ttf");
+        text.setFont(font);
+        text.setString(std::to_string((int)floor(fps + 0.5f)));
+        text.setCharacterSize(24);
+        text.setFillColor(sf::Color(255, 255, 255, 100));
+        text.setStyle(sf::Text::Bold);
+        wref.draw(text);
+
+        sf::RectangleShape button(vec(100, 100));
+        button.setFillColor(sf::Color(255, 255, 255, 50));
+        vec wdim = interface_view.getSize();
+        button.setPosition(wdim.x / 2 + 5, wdim.y - 110);
+        wref.draw(button);
+
+        sf::RectangleShape button2(vec(100, 100));
+        button2.setFillColor(sf::Color(255, 255, 255, 50));
+        button2.setPosition(wdim.x / 2 - 105, wdim.y - 110);
+        wref.draw(button2);
     }
 };
 
@@ -319,17 +345,7 @@ class MainLoop : public Component {
             origin.setPosition(0, 0);
             wref.draw(origin);
 
-            view_controller->set_interface();
-            sf::Text text;
-            // select the font
-            sf::Font font;
-            font.loadFromFile("DejaVuSans.ttf");
-            text.setFont(font);
-            text.setString(std::to_string((int)floor(fps + 0.5f)));
-            text.setCharacterSize(24);
-            text.setFillColor(sf::Color(255, 255, 255, 100));
-            text.setStyle(sf::Text::Bold);
-            wref.draw(text);
+            view_controller->draw_interface(fps);
 
             wref.display();
         }
