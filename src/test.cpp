@@ -37,6 +37,8 @@ class Window : public Component {
 
     void set_view(const sf::View& view) { window.setView(view); }
 
+    void default_view() { window.setView(window.getDefaultView()); }
+
     sf::Vector2i get_mouse_position() { return sf::Mouse::getPosition(window); }
 
     bool process_event(sf::Event& event) {
@@ -53,9 +55,9 @@ class Window : public Component {
 
 /*
 ====================================================================================================
-  ~*~ GameView ~*~
+  ~*~ ViewController ~*~
 ==================================================================================================*/
-class GameView : public Component {
+class ViewController : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
     sf::View main_view;
@@ -64,8 +66,8 @@ class GameView : public Component {
     Window* window;
 
   public:
-    GameView() : main_view(sf::FloatRect(-200, -200, 1300, 800)) {
-        port("window", &GameView::window);
+    ViewController() : main_view(sf::FloatRect(-200, -200, 1300, 800)) {
+        port("window", &ViewController::window);
     }
 
     bool process_event(sf::Event& event) {
@@ -79,11 +81,9 @@ class GameView : public Component {
             mouse_pressed = false;
         } else if (event.type == sf::Event::MouseWheelScrolled) {
             main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
-            window->set_view(main_view);
         } else if (event.type == sf::Event::Resized) {
             scalar zoom = main_view.getSize().x / window->width;
             main_view.setSize(zoom * event.size.width, zoom * event.size.height);
-            window->set_view(main_view);
             window->width = event.size.width;
             window->height = event.size.height;  // unused for now but might as well update it
         } else {
@@ -92,12 +92,17 @@ class GameView : public Component {
         return true;
     }
 
+    void set_main() { window->set_view(main_view); }
+
+    void set_interface() { window->default_view(); }
+
+    sf::RenderWindow& get_draw_ref() { return window->get(); }
+
     bool update(scalar w) {
         if (mouse_pressed) {
             auto mouse_pos = window->get_mouse_position();
             scalar zoom = main_view.getSize().x / window->width;
             main_view.move((mouse_x - mouse_pos.x) * zoom, (mouse_y - mouse_pos.y) * zoom);
-            window->set_view(main_view);
             mouse_x = mouse_pos.x;
             mouse_y = mouse_pos.y;
         }
@@ -149,7 +154,7 @@ class MainMode : public Component {
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
 
     Window* window;
-    GameView* main_view;
+    ViewController* view_controller;
     TileMap* terrain;
     HexGrid* grid;
     Layer* person_layer;  // TODO find better name
@@ -160,7 +165,7 @@ class MainMode : public Component {
     MainMode() {
         provide("persons", &MainMode::provide_persons);
         port("window", &MainMode::window);
-        port("view", &MainMode::main_view);
+        port("view", &MainMode::view_controller);
         port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
         port("layer", &MainMode::person_layer);
@@ -172,16 +177,16 @@ class MainMode : public Component {
     }
 
     void load() {
-        main_view->update(w);
+        view_controller->update(w);
         terrain->map->set(HexCoords::from_offset(5, 5), 7);
 
-        auto hexes_to_draw = main_view->get_visible_coords(w);
+        auto hexes_to_draw = view_controller->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
         grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
     }
 
     bool process_event(sf::Event event) {
-        vec pos = main_view->get_mouse_position();
+        vec pos = view_controller->get_mouse_position();
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::G) {
             toggle_grid = !toggle_grid;
@@ -219,16 +224,16 @@ class MainMode : public Component {
             }
 
         } else if (!window->process_event(event)) {
-            main_view->process_event(event);
+            view_controller->process_event(event);
         }
 
-        return window->process_event(event) and main_view->process_event(event);
+        return window->process_event(event) and view_controller->process_event(event);
     }
 
     void before_draw(sf::Time elapsed_time) {
-        vec pos = main_view->get_mouse_position();
-        if (main_view->update(w)) {
-            hexes_to_draw = main_view->get_visible_coords(w);
+        vec pos = view_controller->get_mouse_position();
+        if (view_controller->update(w)) {
+            hexes_to_draw = view_controller->get_visible_coords(w);
             terrain->load(w, hexes_to_draw);
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
             // std::cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
@@ -250,21 +255,21 @@ class MainMode : public Component {
 ==================================================================================================*/
 class MainLoop : public Component {
     MainMode* main_mode;
-    Window* window;
+    ViewController* view_controller;
     vector<Layer*> layers;
 
     void add_layer(Layer* ptr) { layers.push_back(ptr); }
 
   public:
     MainLoop() {
-        port("window", &MainLoop::window);
+        port("viewcontroller", &MainLoop::view_controller);
         port("main_mode", &MainLoop::main_mode);
         port("go", &MainLoop::go);
         port("layers", &MainLoop::add_layer);
     }
 
     void go() {
-        auto& wref = window->get();
+        auto& wref = view_controller->get_draw_ref();
 
         std::vector<scalar> frametimes;
 
@@ -302,6 +307,13 @@ class MainLoop : public Component {
             origin.setPosition(0, 0);
             wref.draw(origin);
 
+            view_controller->set_interface();
+            sf::CircleShape test(10);
+            test.setFillColor(sf::Color::Blue);
+            test.setPosition(20, 20);
+            wref.draw(test);
+            view_controller->set_main();
+
             wref.display();
         }
     }
@@ -317,7 +329,7 @@ int main() {
     Model model;
 
     model.component<MainLoop>("mainloop")
-        .connect<Use<Window>>("window", "window")
+        .connect<Use<ViewController>>("viewcontroller", "viewcontroller")
         .connect<Use<MainMode>>("main_mode", "mainmode")
         .connect<Use<Layer>>("layers", "terrainlayer")
         .connect<Use<Layer>>("layers", "gridlayer")
@@ -332,14 +344,16 @@ int main() {
         .connect<Use<Window>>("window", "window")
         .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<TileMap>>("terrain", "terrain")
-        .connect<Use<GameView>>("view", "mainview")
+        .connect<Use<ViewController>>("view", "viewcontroller")
         .connect<Use<Layer>>("layer", "personlayer");
 
     model.component<Window>("window");
-    model.component<GameView>("mainview").connect<Use<Window>>("window", "window");
+    model.component<ViewController>("viewcontroller").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
     model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
+
+    model.dot_to_file();
 
     Assembly assembly(model);
     assembly.call("mainloop", "go");
