@@ -78,11 +78,14 @@ class ViewController : public Component {
             mouse_pressed = true;
             mouse_x = event.mouseButton.x;
             mouse_y = event.mouseButton.y;
+
         } else if (event.type == sf::Event::MouseButtonReleased and
                    event.mouseButton.button == sf::Mouse::Middle) {
             mouse_pressed = false;
+
         } else if (event.type == sf::Event::MouseWheelScrolled) {
             main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
+
         } else if (event.type == sf::Event::Resized) {
             scalar zoom = main_view.getSize().x / window->width;
             main_view.setSize(zoom * event.size.width, zoom * event.size.height);
@@ -90,6 +93,7 @@ class ViewController : public Component {
             interface_view.setCenter(interface_view.getSize() / 2);
             window->width = event.size.width;
             window->height = event.size.height;  // unused for now but might as well update it
+
         } else {
             return false;
         }
@@ -147,7 +151,7 @@ class ViewController : public Component {
   A mode is an object that forwards events to relevant process_event methods.
 ==================================================================================================*/
 class MainMode : public Component {
-    HexCoords cursor_coords;
+    HexCoords cursor_coords, last_click_coords;
     bool toggle_grid{true};
     scalar w = 144;
     vector<HexCoords> hexes_to_draw;
@@ -218,12 +222,12 @@ class MainMode : public Component {
 
         } else if (event.type == sf::Event::MouseButtonPressed and
                    event.mouseButton.button == sf::Mouse::Left) {
-            cursor_coords = HexCoords::from_pixel(w, pos);
+            last_click_coords = HexCoords::from_pixel(w, pos);
             if (selected_tool == 1) {
-                menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", cursor_coords));
+                menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", last_click_coords));
                 person_layer->add_object(menhirs.back().get());
             } else if (selected_tool == 2) {
-                faith.emplace_back(new Faith(w, cursor_coords));
+                faith.emplace_back(new Faith(w, last_click_coords));
                 person_layer->add_object(faith.back().get());
             }
 
