@@ -171,14 +171,21 @@ class ViewController : public Component {
         button2.setPosition(wdim.x / 2 - 105, wdim.y - 110);
         wref.draw(button2);
 
+        sf::RectangleShape button3(vec(100, 100));
+        button3.setFillColor(sf::Color(255, 255, 255, 50));
+        button3.setPosition(wdim.x / 2 + 115, wdim.y - 110);
+        wref.draw(button3);
+
         sf::RectangleShape selector(vec(110, 110));
         selector.setFillColor(sf::Color(255, 255, 255, 0));
         selector.setOutlineColor(sf::Color::Red);
         selector.setOutlineThickness(2);
         if (select == 1) {
             selector.setPosition(wdim.x / 2 - 110, wdim.y - 115);
-        } else {
+        } else if (select == 2) {
             selector.setPosition(wdim.x / 2, wdim.y - 115);
+        } else {
+            selector.setPosition(wdim.x / 2 + 110, wdim.y - 115);
         }
         wref.draw(selector);
 
@@ -192,6 +199,12 @@ class ViewController : public Component {
         auto& faith_sprite = faith.get_sprite();
         faith_sprite.setPosition(wdim.x / 2 + 55, wdim.y - 60);
         wref.draw(faith_sprite);
+
+        SimpleObject altar(144, "png/altar.png");
+        auto& altar_sprite = altar.get_sprite();
+        altar_sprite.setPosition(wdim.x / 2 + 165, wdim.y - 60);
+        altar_sprite.setScale(1.4, 1.4);
+        wref.draw(altar_sprite);
     }
 };
 
@@ -260,6 +273,10 @@ class MainMode : public Component {
                     selected_tool = 2;
                     view_controller->select = 2;
                     break;
+                case sf::Keyboard::Num3:
+                    selected_tool = 3;
+                    view_controller->select = 3;
+                    break;
                 default:
                     break;
             }
@@ -276,11 +293,17 @@ class MainMode : public Component {
                    event.mouseButton.button == sf::Mouse::Left) {
             last_click_coords = HexCoords::from_pixel(w, pos);
             if (selected_tool == 1) {
-                menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", last_click_coords));
+                if (rand() % 2 == 0)
+                    menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", last_click_coords));
+                else
+                    menhirs.emplace_back(new SimpleObject(w, "png/menhir2.png", last_click_coords));
                 person_layer->add_object(menhirs.back().get());
             } else if (selected_tool == 2) {
                 faith.emplace_back(new Faith(w, last_click_coords));
                 person_layer->add_object(faith.back().get());
+            } else if (selected_tool == 3) {
+                menhirs.emplace_back(new SimpleObject(w, "png/altar.png", last_click_coords));
+                person_layer->add_object(menhirs.back().get());
             }
 
         } else if (!window->process_event(event)) {
