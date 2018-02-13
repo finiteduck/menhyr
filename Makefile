@@ -8,7 +8,7 @@ src/tinycompo.hpp:
 	curl https://raw.githubusercontent.com/vlanore/tinycompo/master/tinycompo.hpp > $@
 
 %_bin: src/%.cpp src/tinycompo.hpp src/*.hpp
-	$(CXX) $< -o $@ $(FLAGS) -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++11
+	$(CXX) $< -o $@ $(FLAGS) -lsfml-graphics -lsfml-window -lsfml-system --std=gnu++14
 
 format:
 	clang-format -i src/*.cpp src/*.hpp

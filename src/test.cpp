@@ -13,6 +13,7 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
+#include <memory>
 #include "HexCoords.hpp"
 #include "HexGrid.hpp"
 #include "Layer.hpp"
@@ -20,6 +21,8 @@
 #include "TileMap.hpp"
 #include "connectors.hpp"
 #include "game_objects.hpp"
+
+using namespace std;
 
 /*
 ====================================================================================================
@@ -150,6 +153,7 @@ class ViewController : public Component {
         set_interface();
         auto& wref = window->get();
 
+        // fps display
         sf::Text text;
         sf::Font font;
         font.loadFromFile("DejaVuSans.ttf");
@@ -160,51 +164,44 @@ class ViewController : public Component {
         text.setStyle(sf::Text::Bold);
         wref.draw(text);
 
-        sf::RectangleShape button(vec(100, 100));
-        button.setFillColor(sf::Color(255, 255, 255, 50));
+        // toolbar
+        int toolbar_size = 3;
+        scalar button_size = 100;
+        scalar space_between_buttons = 10;
+        scalar total_width =
+            toolbar_size * button_size + (toolbar_size - 1) * space_between_buttons;
         vec wdim = interface_view.getSize();
-        button.setPosition(wdim.x / 2 + 5, wdim.y - 110);
-        wref.draw(button);
 
-        sf::RectangleShape button2(vec(100, 100));
-        button2.setFillColor(sf::Color(255, 255, 255, 50));
-        button2.setPosition(wdim.x / 2 - 105, wdim.y - 110);
-        wref.draw(button2);
+        vector<unique_ptr<SimpleObject>> icons;
+        icons.push_back(make_unique<SimpleObject>(144, "png/menhir.png"));
+        icons.back()->get_sprite().setScale(0.75, 0.75);
+        icons.push_back(make_unique<SimpleObject>(144, "png/faith.png"));
+        icons.push_back(make_unique<SimpleObject>(144, "png/altar.png"));
+        icons.back()->get_sprite().setScale(1.4, 1.4);
 
-        sf::RectangleShape button3(vec(100, 100));
-        button3.setFillColor(sf::Color(255, 255, 255, 50));
-        button3.setPosition(wdim.x / 2 + 115, wdim.y - 110);
-        wref.draw(button3);
+        // TODO move init in a function not called every time
+        for (int i = 0; i < toolbar_size; i++) {
+            sf::RectangleShape button(vec(button_size, button_size));
+            button.setFillColor(sf::Color(255, 255, 255, 50));
+            button.setPosition(
+                wdim.x / 2 - total_width / 2 + i * (button_size + space_between_buttons),
+                wdim.y - button_size - space_between_buttons);
+            wref.draw(button);
+            auto& icon = icons.at(i)->get_sprite();
+            icon.setPosition(wdim.x / 2 - total_width / 2 +
+                                 i * (button_size + space_between_buttons) + button_size / 2,
+                             wdim.y - button_size / 2 - space_between_buttons);
+            wref.draw(icon);
+        }
 
-        sf::RectangleShape selector(vec(110, 110));
+        sf::RectangleShape selector(vec(button_size, button_size));
         selector.setFillColor(sf::Color(255, 255, 255, 0));
         selector.setOutlineColor(sf::Color::Red);
         selector.setOutlineThickness(2);
-        if (select == 1) {
-            selector.setPosition(wdim.x / 2 - 110, wdim.y - 115);
-        } else if (select == 2) {
-            selector.setPosition(wdim.x / 2, wdim.y - 115);
-        } else {
-            selector.setPosition(wdim.x / 2 + 110, wdim.y - 115);
-        }
+        selector.setPosition(
+            wdim.x / 2 - total_width / 2 + (select - 1) * (button_size + space_between_buttons),
+            wdim.y - button_size - space_between_buttons);
         wref.draw(selector);
-
-        SimpleObject menhir(144, "png/menhir.png");
-        auto& menhir_sprite = menhir.get_sprite();
-        menhir_sprite.setPosition(wdim.x / 2 - 55, wdim.y - 60);
-        menhir_sprite.setScale(0.75, 0.75);
-        wref.draw(menhir_sprite);
-
-        SimpleObject faith(144, "png/faith.png");
-        auto& faith_sprite = faith.get_sprite();
-        faith_sprite.setPosition(wdim.x / 2 + 55, wdim.y - 60);
-        wref.draw(faith_sprite);
-
-        SimpleObject altar(144, "png/altar.png");
-        auto& altar_sprite = altar.get_sprite();
-        altar_sprite.setPosition(wdim.x / 2 + 165, wdim.y - 60);
-        altar_sprite.setScale(1.4, 1.4);
-        wref.draw(altar_sprite);
     }
 };
 
