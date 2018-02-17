@@ -56,6 +56,79 @@ class Window : public Component {
 
 /*
 ====================================================================================================
+  ~*~ Interface ~*~
+==================================================================================================*/
+class Interface : public GameObject {
+    sf::Text text;
+    sf::Font font;
+    int toolbar_size = 3;
+    scalar button_size = 100;
+    scalar space_between_buttons = 10;
+    scalar total_width = toolbar_size * button_size + (toolbar_size - 1) * space_between_buttons;
+
+    vector<sf::RectangleShape> buttons;
+    vector<unique_ptr<SimpleObject>> icons;
+    sf::RectangleShape selector;
+
+    virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        states.transform *= getTransform();
+        target.draw(text);
+        for (auto& button : buttons) {
+            target.draw(button);
+        }
+        for (auto& icon : icons) {
+            target.draw(*icon);
+        }
+        target.draw(selector);
+    }
+
+  public:
+    int select{1};
+
+    Interface() : selector(vec(button_size, button_size)) {
+        font.loadFromFile("DejaVuSans.ttf");
+        text.setFont(font);
+        text.setCharacterSize(24);
+        text.setFillColor(sf::Color(255, 255, 255, 100));
+        text.setStyle(sf::Text::Bold);
+
+        for (int i = 0; i < toolbar_size; i++) {
+            buttons.emplace_back(vec(button_size, button_size));
+            buttons.back().setFillColor(sf::Color(255, 255, 255, 50));
+        }
+
+        icons.push_back(make_unique<SimpleObject>(144, "png/menhir.png"));
+        icons.back()->get_sprite().setScale(0.75, 0.75);
+        icons.push_back(make_unique<SimpleObject>(144, "png/faith.png"));
+        icons.push_back(make_unique<SimpleObject>(144, "png/altar.png"));
+        icons.back()->get_sprite().setScale(1.4, 1.4);
+
+        selector.setFillColor(sf::Color(255, 255, 255, 0));
+        selector.setOutlineColor(sf::Color::Red);
+        selector.setOutlineThickness(2);
+    }
+
+    void update(scalar fps, vec wdim) {
+        text.setString(std::to_string((int)floor(fps + 0.5f)));
+
+        // toolbar
+        for (int i = 0; i < toolbar_size; i++) {
+            auto& icon = icons.at(i)->get_sprite();
+            buttons.at(i).setPosition(
+                wdim.x / 2 - total_width / 2 + i * (button_size + space_between_buttons),
+                wdim.y - button_size - space_between_buttons);
+            icon.setPosition(wdim.x / 2 - total_width / 2 +
+                                 i * (button_size + space_between_buttons) + button_size / 2,
+                             wdim.y - button_size / 2 - space_between_buttons);
+        }
+        selector.setPosition(
+            wdim.x / 2 - total_width / 2 + (select - 1) * (button_size + space_between_buttons),
+            wdim.y - button_size - space_between_buttons);
+    }
+};
+
+/*
+====================================================================================================
   ~*~ ViewController ~*~
 ==================================================================================================*/
 class ViewController : public Component {
@@ -146,63 +219,6 @@ class ViewController : public Component {
         }
         return result;
     }
-
-    int select{1};
-
-    void draw_interface(scalar fps) {
-        set_interface();
-        auto& wref = window->get();
-
-        // fps display
-        sf::Text text;
-        sf::Font font;
-        font.loadFromFile("DejaVuSans.ttf");
-        text.setFont(font);
-        text.setString(std::to_string((int)floor(fps + 0.5f)));
-        text.setCharacterSize(24);
-        text.setFillColor(sf::Color(255, 255, 255, 100));
-        text.setStyle(sf::Text::Bold);
-        wref.draw(text);
-
-        // toolbar
-        int toolbar_size = 3;
-        scalar button_size = 100;
-        scalar space_between_buttons = 10;
-        scalar total_width =
-            toolbar_size * button_size + (toolbar_size - 1) * space_between_buttons;
-        vec wdim = interface_view.getSize();
-
-        vector<unique_ptr<SimpleObject>> icons;
-        icons.push_back(make_unique<SimpleObject>(144, "png/menhir.png"));
-        icons.back()->get_sprite().setScale(0.75, 0.75);
-        icons.push_back(make_unique<SimpleObject>(144, "png/faith.png"));
-        icons.push_back(make_unique<SimpleObject>(144, "png/altar.png"));
-        icons.back()->get_sprite().setScale(1.4, 1.4);
-
-        // TODO move init in a function not called every time
-        for (int i = 0; i < toolbar_size; i++) {
-            sf::RectangleShape button(vec(button_size, button_size));
-            button.setFillColor(sf::Color(255, 255, 255, 50));
-            button.setPosition(
-                wdim.x / 2 - total_width / 2 + i * (button_size + space_between_buttons),
-                wdim.y - button_size - space_between_buttons);
-            wref.draw(button);
-            auto& icon = icons.at(i)->get_sprite();
-            icon.setPosition(wdim.x / 2 - total_width / 2 +
-                                 i * (button_size + space_between_buttons) + button_size / 2,
-                             wdim.y - button_size / 2 - space_between_buttons);
-            wref.draw(icon);
-        }
-
-        sf::RectangleShape selector(vec(button_size, button_size));
-        selector.setFillColor(sf::Color(255, 255, 255, 0));
-        selector.setOutlineColor(sf::Color::Red);
-        selector.setOutlineThickness(2);
-        selector.setPosition(
-            wdim.x / 2 - total_width / 2 + (select - 1) * (button_size + space_between_buttons),
-            wdim.y - button_size - space_between_buttons);
-        wref.draw(selector);
-    }
 };
 
 /*
@@ -225,6 +241,7 @@ class MainMode : public Component {
     ViewController* view_controller;
     TileMap* terrain;
     HexGrid* grid;
+    Interface* interface;
     Layer* person_layer;  // TODO find better name
 
     int selected_tool{1};
@@ -236,6 +253,7 @@ class MainMode : public Component {
         port("view", &MainMode::view_controller);
         port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
+        port("interface", &MainMode::interface);
         port("layer", &MainMode::person_layer);
 
         for (int i = 0; i < 7; i++) {
@@ -264,15 +282,15 @@ class MainMode : public Component {
             switch (event.key.code) {
                 case sf::Keyboard::Num1:
                     selected_tool = 1;
-                    view_controller->select = 1;
+                    interface->select = 1;
                     break;
                 case sf::Keyboard::Num2:
                     selected_tool = 2;
-                    view_controller->select = 2;
+                    interface->select = 2;
                     break;
                 case sf::Keyboard::Num3:
                     selected_tool = 3;
-                    view_controller->select = 3;
+                    interface->select = 3;
                     break;
                 default:
                     break;
@@ -337,6 +355,7 @@ class MainLoop : public Component {
     MainMode* main_mode;
     ViewController* view_controller;
     vector<Layer*> layers;
+    Interface* interface;
 
     void add_layer(Layer* ptr) { layers.push_back(ptr); }
 
@@ -346,6 +365,7 @@ class MainLoop : public Component {
         port("main_mode", &MainLoop::main_mode);
         port("go", &MainLoop::go);
         port("layers", &MainLoop::add_layer);
+        port("interface", &MainLoop::interface);
     }
 
     void go() {
@@ -391,7 +411,9 @@ class MainLoop : public Component {
             origin.setPosition(0, 0);
             wref.draw(origin);
 
-            view_controller->draw_interface(fps);
+            view_controller->set_interface();
+            interface->update(fps, vec(wref.getSize()));
+            wref.draw(*interface);
 
             wref.display();
         }
@@ -412,6 +434,7 @@ int main() {
         .connect<Use<MainMode>>("main_mode", "mainmode")
         .connect<Use<Layer>>("layers", "terrainlayer")
         .connect<Use<Layer>>("layers", "gridlayer")
+        .connect<Use<Interface>>("interface", "interface")
         .connect<Use<Layer>>("layers", "personlayer");
 
     model.component<Layer>("terrainlayer").connect<Use<GameObject>>("objects", "terrain");
@@ -424,13 +447,16 @@ int main() {
         .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<TileMap>>("terrain", "terrain")
         .connect<Use<ViewController>>("view", "viewcontroller")
-        .connect<Use<Layer>>("layer", "personlayer");
+        .connect<Use<Layer>>("layer", "personlayer")
+        .connect<Use<Interface>>("interface", "interface");
 
     model.component<Window>("window");
     model.component<ViewController>("viewcontroller").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
     model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
+
+    model.component<Interface>("interface");
 
     model.dot_to_file();
 
