@@ -40,8 +40,6 @@ class Interface : public GameObject {
     vector<unique_ptr<SimpleObject>> icons;
     sf::RectangleShape selector;
 
-    View* view;
-
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         // view->use(); // commented because job of the layer
         states.transform *= getTransform();
@@ -59,8 +57,6 @@ class Interface : public GameObject {
     int select{1};
 
     Interface() : selector(vec(button_size, button_size)) {
-        port("view", &Interface::view);
-
         font.loadFromFile("DejaVuSans.ttf");
         text.setFont(font);
         text.setCharacterSize(24);
@@ -83,9 +79,9 @@ class Interface : public GameObject {
         selector.setOutlineThickness(2);
     }
 
-    void update(scalar fps = 120) {
+    void before_draw(vec wdim, scalar fps) {
         text.setString(std::to_string((int)floor(fps + 0.5f)));
-        vec wdim = view->get_size();
+        // vec wdim = view->get_size();
 
         // toolbar
         for (int i = 0; i < toolbar_size; i++) {
@@ -210,8 +206,8 @@ class MainMode : public Component {
         return window->process_event(event) and view_controller->process_event(event);
     }
 
-    void before_draw(sf::Time elapsed_time) {
-        interface->update(120);
+    void before_draw(sf::Time elapsed_time, scalar fps) {
+        interface->before_draw(view_controller->get_window_size(), fps);
 
         vec pos = view_controller->get_mouse_position();
         if (view_controller->update(w)) {
@@ -274,8 +270,7 @@ class MainLoop : public Component {
                 frametimes.clear();
             }
 
-            main_mode->before_draw(elapsed_time);
-            // TODO FPS
+            main_mode->before_draw(elapsed_time, fps);
 
             wref.clear();
 
@@ -339,7 +334,7 @@ int main() {
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
     model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
-    model.component<Interface>("interface").connect<Use<View>>("view", "interfaceview");
+    model.component<Interface>("interface");
 
     model.component<View>("mainview").connect<Use<Window>>("window", "window");
     model.component<View>("interfaceview", true).connect<Use<Window>>("window", "window");

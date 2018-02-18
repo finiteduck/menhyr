@@ -95,6 +95,8 @@ class ViewController : public Component {
         return window->get().mapPixelToCoords(window->get_mouse_position());
     }
 
+    vec get_window_size() { return vec(window->width, window->height); }
+
     vector<HexCoords> get_visible_coords(int w) {
         // gather relevant view coordinates
         vec dim = main_view->get().getSize();
