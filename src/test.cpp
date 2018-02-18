@@ -40,10 +40,10 @@ class Interface : public GameObject {
     vector<unique_ptr<SimpleObject>> icons;
     sf::RectangleShape selector;
 
-    ViewController* view;
+    View* view;
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        view->set_interface();
+        // view->use(); // commented because job of the layer
         states.transform *= getTransform();
         target.draw(text);
         for (auto& button : buttons) {
@@ -85,7 +85,7 @@ class Interface : public GameObject {
 
     void update(scalar fps = 120) {
         text.setString(std::to_string((int)floor(fps + 0.5f)));
-        vec wdim = view->get_interface_size();
+        vec wdim = view->get_size();
 
         // toolbar
         for (int i = 0; i < toolbar_size; i++) {
@@ -218,7 +218,6 @@ class MainMode : public Component {
             hexes_to_draw = view_controller->get_visible_coords(w);
             terrain->load(w, hexes_to_draw);
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-            // std::cout << "number of displayed hexes: " << hexes_to_draw.size() << "\n";
         }
 
         for (auto& person : persons) {
@@ -259,8 +258,6 @@ class MainLoop : public Component {
         sf::Clock clock;
         scalar fps = 0;
         while (wref.isOpen()) {
-            view_controller->set_main();
-
             sf::Event event;
             while (wref.pollEvent(event)) {
                 main_mode->process_event(event);
@@ -284,6 +281,7 @@ class MainLoop : public Component {
 
             for (auto& l : layers) {
                 l->before_draw();
+                l->set_view();
                 wref.draw(*l);
             }
 
@@ -293,10 +291,6 @@ class MainLoop : public Component {
             origin.setOrigin(origin.getRadius(), origin.getRadius());
             origin.setPosition(0, 0);
             wref.draw(origin);
-
-            // view_controller->set_interface();
-            // interface->update(fps, vec(wref.getSize()));
-            // wref.draw(*interface);
 
             wref.display();
         }
@@ -322,16 +316,16 @@ int main() {
 
     model.component<Layer>("terrainlayer")
         .connect<Use<GameObject>>("objects", "terrain")
-        .connect<Use<ViewController>>("view", "viewcontroller");
+        .connect<Use<View>>("view", "mainview");
     model.component<Layer>("gridlayer")
         .connect<Use<GameObject>>("objects", "grid")
-        .connect<Use<ViewController>>("view", "viewcontroller");
+        .connect<Use<View>>("view", "mainview");
     model.component<Layer>("personlayer")
         .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"))
-        .connect<Use<ViewController>>("view", "viewcontroller");
+        .connect<Use<View>>("view", "mainview");
     model.component<Layer>("interfacelayer")
         .connect<Use<GameObject>>("objects", "interface")
-        .connect<Use<ViewController>>("view", "viewcontroller");
+        .connect<Use<View>>("view", "interfaceview");
 
     model.component<MainMode>("mainmode")
         .connect<Use<Window>>("window", "window")
@@ -342,12 +336,17 @@ int main() {
         .connect<Use<Interface>>("interface", "interface");
 
     model.component<Window>("window");
-    model.component<ViewController>("viewcontroller").connect<Use<Window>>("window", "window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
     model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
+    model.component<Interface>("interface").connect<Use<View>>("view", "interfaceview");
 
-    model.component<Interface>("interface").connect<Use<ViewController>>("view", "viewcontroller");
+    model.component<View>("mainview").connect<Use<Window>>("window", "window");
+    model.component<View>("interfaceview", true).connect<Use<Window>>("window", "window");
+    model.component<ViewController>("viewcontroller")
+        .connect<Use<Window>>("window", "window")
+        .connect<Use<View>>("mainview", "mainview")
+        .connect<Use<View>>("interfaceview", "interfaceview");
 
     model.dot_to_file();
 

@@ -21,7 +21,7 @@
   ==================================================================================================*/
 class Layer : public sf::Drawable, public Component {
     vector<GameObject*> objects;
-    ViewController* view;
+    View* view;
 
   public:
     Layer() {
@@ -35,10 +35,11 @@ class Layer : public sf::Drawable, public Component {
         });
     }
 
+    void set_view() { view->use(); }
+
     void add_object(GameObject* ptr) { objects.push_back(ptr); }
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        view->set_main();  // HACK should be a port directly to a view
         for (auto& o : objects) {
             target.draw(*o, states);
         }

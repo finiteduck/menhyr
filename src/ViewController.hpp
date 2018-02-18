@@ -16,6 +16,7 @@
 #pragma once
 
 #include "HexCoords.hpp"
+#include "View.hpp"
 #include "Window.hpp"
 #include "globals.hpp"
 
@@ -26,18 +27,22 @@
 class ViewController : public Component {
     bool mouse_pressed{false};
     int mouse_x{0}, mouse_y{0};
-    sf::View main_view, interface_view;
+    View *main_view, *interface_view;
     HexCoords ctl, cbr;
 
     Window* window;
 
   public:
-    ViewController() { port("window", &ViewController::window); }
+    ViewController() {
+        port("interfaceview", &ViewController::interface_view);
+        port("mainview", &ViewController::main_view);
+        port("window", &ViewController::window);
+    }
 
     void init() {
-        main_view = window->get().getDefaultView();
-        main_view.move(-300, -300);
-        interface_view = window->get().getDefaultView();
+        main_view->set(window->get().getDefaultView());
+        main_view->get().move(-300, -300);
+        interface_view->set(window->get().getDefaultView());
     }
 
     bool process_event(sf::Event& event) {
@@ -52,17 +57,16 @@ class ViewController : public Component {
             mouse_pressed = false;
 
         } else if (event.type == sf::Event::MouseWheelScrolled) {
-            main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
+            scalar zoom = 1 - (event.mouseWheelScroll.delta * 0.15);
+            main_view->get().zoom(zoom);
 
         } else if (event.type == sf::Event::Resized) {
-            scalar zoom = main_view.getSize().x / window->width;
+            scalar zoom = main_view->get().getSize().x / window->width;
             vec event_size(event.size.width, event.size.height);
             vec new_size = zoom * event_size;
-            main_view.setSize(new_size);
-            interface_view.setSize(event_size);
-            interface_view.setCenter(event_size / 2);
+            main_view->get().setSize(new_size);
             window->width = event.size.width;
-            window->height = event.size.height;  // unused for now but might as well update it
+            window->height = event.size.height;
 
         } else {
             return false;
@@ -70,23 +74,18 @@ class ViewController : public Component {
         return true;
     }
 
-    void set_main() { window->set_view(main_view); }
-    void set_interface() { window->set_view(interface_view); }
-    vec get_main_size() { return main_view.getSize(); }
-    vec get_interface_size() { return interface_view.getSize(); }
-
     sf::RenderWindow& get_draw_ref() { return window->get(); }
 
     bool update(scalar w) {
         if (mouse_pressed) {
             auto mouse_pos = window->get_mouse_position();
-            scalar zoom = main_view.getSize().x / window->width;
-            main_view.move((mouse_x - mouse_pos.x) * zoom, (mouse_y - mouse_pos.y) * zoom);
+            scalar zoom = main_view->get().getSize().x / window->width;
+            main_view->get().move((mouse_x - mouse_pos.x) * zoom, (mouse_y - mouse_pos.y) * zoom);
             mouse_x = mouse_pos.x;
             mouse_y = mouse_pos.y;
         }
-        vec dim = main_view.getSize();
-        vec center = main_view.getCenter();
+        vec dim = main_view->get().getSize();
+        vec center = main_view->get().getCenter();
         vec tl = center - dim / 2;
         vec br = tl + dim;
         return !(HexCoords::from_pixel(w, tl) == ctl) or !(HexCoords::from_pixel(w, br) == cbr);
@@ -98,8 +97,8 @@ class ViewController : public Component {
 
     vector<HexCoords> get_visible_coords(int w) {
         // gather relevant view coordinates
-        vec dim = main_view.getSize();
-        vec center = main_view.getCenter();
+        vec dim = main_view->get().getSize();
+        vec center = main_view->get().getCenter();
         vec tl = center - dim / 2;
         vec br = tl + dim;
 
