@@ -164,9 +164,11 @@ class ViewController : public Component {
 
         } else if (event.type == sf::Event::Resized) {
             scalar zoom = main_view.getSize().x / window->width;
-            main_view.setSize(zoom * event.size.width, zoom * event.size.height);
-            interface_view.setSize(zoom * event.size.width, zoom * event.size.height);
-            interface_view.setCenter(interface_view.getSize() / 2);
+            vec event_size(event.size.width, event.size.height);
+            vec new_size = zoom * event_size;
+            main_view.setSize(new_size);
+            interface_view.setSize(event_size);
+            interface_view.setCenter(event_size / 2);
             window->width = event.size.width;
             window->height = event.size.height;  // unused for now but might as well update it
 
@@ -179,6 +181,8 @@ class ViewController : public Component {
     void set_main() { window->set_view(main_view); }
 
     void set_interface() { window->set_view(interface_view); }
+
+    vec get_main_size() { return main_view.getSize(); }
 
     sf::RenderWindow& get_draw_ref() { return window->get(); }
 
