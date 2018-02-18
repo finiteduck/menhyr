@@ -14,45 +14,15 @@
   not, see <http://www.gnu.org/licenses/>.*/
 
 #include <memory>
-#include "HexCoords.hpp"
 #include "HexGrid.hpp"
 #include "Layer.hpp"
 #include "TerrainMap.hpp"
 #include "TileMap.hpp"
+#include "ViewController.hpp"
 #include "connectors.hpp"
 #include "game_objects.hpp"
 
 using namespace std;
-
-/*
-====================================================================================================
-  ~*~ Window ~*~
-==================================================================================================*/
-class Window : public Component {
-  public:
-    int width{1500}, height{1000};
-
-  private:
-    sf::RenderWindow window;
-
-  public:
-    Window() : window(sf::VideoMode(width, height), "Menhyr") { window.setFramerateLimit(120); }
-
-    void set_view(const sf::View& view) { window.setView(view); }
-
-    sf::Vector2i get_mouse_position() { return sf::Mouse::getPosition(window); }
-
-    bool process_event(sf::Event& event) {
-        if (event.type == sf::Event::Closed) {
-            window.close();
-        } else {
-            return false;
-        }
-        return true;
-    }
-
-    sf::RenderWindow& get() { return window; }
-};
 
 /*
 ====================================================================================================
@@ -70,7 +40,10 @@ class Interface : public GameObject {
     vector<unique_ptr<SimpleObject>> icons;
     sf::RectangleShape selector;
 
+    ViewController* view;
+
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        view->set_interface();
         states.transform *= getTransform();
         target.draw(text);
         for (auto& button : buttons) {
@@ -86,6 +59,8 @@ class Interface : public GameObject {
     int select{1};
 
     Interface() : selector(vec(button_size, button_size)) {
+        port("view", &Interface::view);
+
         font.loadFromFile("DejaVuSans.ttf");
         text.setFont(font);
         text.setCharacterSize(24);
@@ -108,8 +83,9 @@ class Interface : public GameObject {
         selector.setOutlineThickness(2);
     }
 
-    void update(scalar fps, vec wdim) {
+    void update(scalar fps = 120) {
         text.setString(std::to_string((int)floor(fps + 0.5f)));
+        vec wdim = view->get_interface_size();
 
         // toolbar
         for (int i = 0; i < toolbar_size; i++) {
@@ -124,104 +100,6 @@ class Interface : public GameObject {
         selector.setPosition(
             wdim.x / 2 - total_width / 2 + (select - 1) * (button_size + space_between_buttons),
             wdim.y - button_size - space_between_buttons);
-    }
-};
-
-/*
-====================================================================================================
-  ~*~ ViewController ~*~
-==================================================================================================*/
-class ViewController : public Component {
-    bool mouse_pressed{false};
-    int mouse_x{0}, mouse_y{0};
-    sf::View main_view, interface_view;
-    HexCoords ctl, cbr;
-
-    Window* window;
-
-  public:
-    ViewController() { port("window", &ViewController::window); }
-
-    void init() {
-        main_view = window->get().getDefaultView();
-        main_view.move(-300, -300);
-        interface_view = window->get().getDefaultView();
-    }
-
-    bool process_event(sf::Event& event) {
-        if (event.type == sf::Event::MouseButtonPressed and
-            event.mouseButton.button == sf::Mouse::Middle) {
-            mouse_pressed = true;
-            mouse_x = event.mouseButton.x;
-            mouse_y = event.mouseButton.y;
-
-        } else if (event.type == sf::Event::MouseButtonReleased and
-                   event.mouseButton.button == sf::Mouse::Middle) {
-            mouse_pressed = false;
-
-        } else if (event.type == sf::Event::MouseWheelScrolled) {
-            main_view.zoom(1 - (event.mouseWheelScroll.delta * 0.15));
-
-        } else if (event.type == sf::Event::Resized) {
-            scalar zoom = main_view.getSize().x / window->width;
-            vec event_size(event.size.width, event.size.height);
-            vec new_size = zoom * event_size;
-            main_view.setSize(new_size);
-            interface_view.setSize(event_size);
-            interface_view.setCenter(event_size / 2);
-            window->width = event.size.width;
-            window->height = event.size.height;  // unused for now but might as well update it
-
-        } else {
-            return false;
-        }
-        return true;
-    }
-
-    void set_main() { window->set_view(main_view); }
-
-    void set_interface() { window->set_view(interface_view); }
-
-    vec get_main_size() { return main_view.getSize(); }
-
-    sf::RenderWindow& get_draw_ref() { return window->get(); }
-
-    bool update(scalar w) {
-        if (mouse_pressed) {
-            auto mouse_pos = window->get_mouse_position();
-            scalar zoom = main_view.getSize().x / window->width;
-            main_view.move((mouse_x - mouse_pos.x) * zoom, (mouse_y - mouse_pos.y) * zoom);
-            mouse_x = mouse_pos.x;
-            mouse_y = mouse_pos.y;
-        }
-        vec dim = main_view.getSize();
-        vec center = main_view.getCenter();
-        vec tl = center - dim / 2;
-        vec br = tl + dim;
-        return !(HexCoords::from_pixel(w, tl) == ctl) or !(HexCoords::from_pixel(w, br) == cbr);
-    }
-
-    vec get_mouse_position() {
-        return window->get().mapPixelToCoords(window->get_mouse_position());
-    }
-
-    vector<HexCoords> get_visible_coords(int w) {
-        // gather relevant view coordinates
-        vec dim = main_view.getSize();
-        vec center = main_view.getCenter();
-        vec tl = center - dim / 2;
-        vec br = tl + dim;
-
-        vector<HexCoords> result;
-
-        ctl = HexCoords::from_pixel(w, tl);
-        cbr = HexCoords::from_pixel(w, br);
-        for (int i = ctl.get_offset().x - 1; i <= cbr.get_offset().x + 1; i++) {
-            for (int j = ctl.get_offset().y - 1; j <= cbr.get_offset().y + 1; j++) {
-                result.push_back(HexCoords::from_offset(i, j));
-            }
-        }
-        return result;
     }
 };
 
@@ -333,6 +211,8 @@ class MainMode : public Component {
     }
 
     void before_draw(sf::Time elapsed_time) {
+        interface->update(120);
+
         vec pos = view_controller->get_mouse_position();
         if (view_controller->update(w)) {
             hexes_to_draw = view_controller->get_visible_coords(w);
@@ -359,7 +239,6 @@ class MainLoop : public Component {
     MainMode* main_mode;
     ViewController* view_controller;
     vector<Layer*> layers;
-    Interface* interface;
 
     void add_layer(Layer* ptr) { layers.push_back(ptr); }
 
@@ -369,7 +248,6 @@ class MainLoop : public Component {
         port("main_mode", &MainLoop::main_mode);
         port("go", &MainLoop::go);
         port("layers", &MainLoop::add_layer);
-        port("interface", &MainLoop::interface);
     }
 
     void go() {
@@ -400,6 +278,7 @@ class MainLoop : public Component {
             }
 
             main_mode->before_draw(elapsed_time);
+            // TODO FPS
 
             wref.clear();
 
@@ -415,9 +294,9 @@ class MainLoop : public Component {
             origin.setPosition(0, 0);
             wref.draw(origin);
 
-            view_controller->set_interface();
-            interface->update(fps, vec(wref.getSize()));
-            wref.draw(*interface);
+            // view_controller->set_interface();
+            // interface->update(fps, vec(wref.getSize()));
+            // wref.draw(*interface);
 
             wref.display();
         }
@@ -438,13 +317,21 @@ int main() {
         .connect<Use<MainMode>>("main_mode", "mainmode")
         .connect<Use<Layer>>("layers", "terrainlayer")
         .connect<Use<Layer>>("layers", "gridlayer")
-        .connect<Use<Interface>>("interface", "interface")
+        .connect<Use<Layer>>("layers", "interfacelayer")
         .connect<Use<Layer>>("layers", "personlayer");
 
-    model.component<Layer>("terrainlayer").connect<Use<GameObject>>("objects", "terrain");
-    model.component<Layer>("gridlayer").connect<Use<GameObject>>("objects", "grid");
+    model.component<Layer>("terrainlayer")
+        .connect<Use<GameObject>>("objects", "terrain")
+        .connect<Use<ViewController>>("view", "viewcontroller");
+    model.component<Layer>("gridlayer")
+        .connect<Use<GameObject>>("objects", "grid")
+        .connect<Use<ViewController>>("view", "viewcontroller");
     model.component<Layer>("personlayer")
-        .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"));
+        .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"))
+        .connect<Use<ViewController>>("view", "viewcontroller");
+    model.component<Layer>("interfacelayer")
+        .connect<Use<GameObject>>("objects", "interface")
+        .connect<Use<ViewController>>("view", "viewcontroller");
 
     model.component<MainMode>("mainmode")
         .connect<Use<Window>>("window", "window")
@@ -460,7 +347,7 @@ int main() {
     model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
 
-    model.component<Interface>("interface");
+    model.component<Interface>("interface").connect<Use<ViewController>>("view", "viewcontroller");
 
     model.dot_to_file();
 

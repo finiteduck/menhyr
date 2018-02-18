@@ -13,17 +13,21 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
+#include "ViewController.hpp"
 #include "globals.hpp"
-
 /*
   ====================================================================================================
   ~*~ Layer ~*~
   ==================================================================================================*/
 class Layer : public sf::Drawable, public Component {
     vector<GameObject*> objects;
+    ViewController* view;
 
   public:
-    Layer() { port("objects", &Layer::add_object); }
+    Layer() {
+        port("view", &Layer::view);
+        port("objects", &Layer::add_object);
+    }
 
     void before_draw() {
         sort(objects.begin(), objects.end(), [](GameObject* ptr1, GameObject* ptr2) {
@@ -34,6 +38,7 @@ class Layer : public sf::Drawable, public Component {
     void add_object(GameObject* ptr) { objects.push_back(ptr); }
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        view->set_main();  // HACK should be a port directly to a view
         for (auto& o : objects) {
             target.draw(*o, states);
         }
