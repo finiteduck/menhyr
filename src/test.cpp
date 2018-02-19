@@ -46,7 +46,7 @@ class MainMode : public Component {
     TileMap* terrain;
     HexGrid* grid;
     Interface* interface;
-    Layer* person_layer;  // TODO find better name
+    Layer* object_layer;
 
     int selected_tool{1};
 
@@ -58,7 +58,7 @@ class MainMode : public Component {
         port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
         port("interface", &MainMode::interface);
-        port("layer", &MainMode::person_layer);
+        port("layer", &MainMode::object_layer);
 
         for (int i = 0; i < 7; i++) {
             persons.emplace_back(new Person(w));
@@ -113,16 +113,18 @@ class MainMode : public Component {
             last_click_coords = HexCoords::from_pixel(w, pos);
             if (selected_tool == 1) {
                 if (rand() % 2 == 0)
-                    menhirs.emplace_back(new SimpleObject(w, "png/menhir.png", last_click_coords));
+                    menhirs.emplace_back(
+                        new SimpleObject(w, "png/menhir.png", last_click_coords, 0.5));
                 else
-                    menhirs.emplace_back(new SimpleObject(w, "png/menhir2.png", last_click_coords));
-                person_layer->add_object(menhirs.back().get());
+                    menhirs.emplace_back(
+                        new SimpleObject(w, "png/menhir2.png", last_click_coords, 0.5));
+                object_layer->add_object(menhirs.back().get());
             } else if (selected_tool == 2) {
                 faith.emplace_back(new Faith(w, last_click_coords));
-                person_layer->add_object(faith.back().get());
+                object_layer->add_object(faith.back().get());
             } else if (selected_tool == 3) {
-                menhirs.emplace_back(new SimpleObject(w, "png/altar.png", last_click_coords));
-                person_layer->add_object(menhirs.back().get());
+                menhirs.emplace_back(new SimpleObject(w, "png/altar.png", last_click_coords, 0.2));
+                object_layer->add_object(menhirs.back().get());
             }
 
         } else if (!window->process_event(event)) {

@@ -21,6 +21,8 @@
 #include <unordered_map>
 #include "tinycompo.hpp"
 
+// TODO TODO TODO separate into two headers, one with and one without sfml
+
 /*
 ====================================================================================================
   ~*~ using declarations ~*~
@@ -49,3 +51,5 @@ struct GameObject : public sf::Drawable, public sf::Transformable, public tc::Co
   ~*~ vector operators ~*~
 ==================================================================================================*/
 vec operator/(vec v, scalar s) { return vec(v.x / s, v.y / s); }
+vec operator*(vec v, scalar s) { return vec(v.x * s, v.y * s); }
+vec operator*(scalar s, vec v) { return vec(v.x * s, v.y * s); }

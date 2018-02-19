@@ -13,10 +13,12 @@ class SimpleObject : public GameObject {
     }
 
   public:
-    SimpleObject(scalar w, std::string texture_path, HexCoords hex = HexCoords()) {
+    SimpleObject(scalar w, std::string texture_path, HexCoords hex = HexCoords(),
+                 scalar shift = 0) {
         texture.loadFromFile(texture_path);
         sprite.setTexture(texture);
-        vec origin(sprite.getLocalBounds().width / 2, sprite.getLocalBounds().height / 2);
+        vec origin(sprite.getLocalBounds().width / 2,
+                   (sprite.getLocalBounds().height / 2) * (1 + shift));
         sprite.setOrigin(origin);
         setPosition(hex.get_pixel(w));
     }

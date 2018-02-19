@@ -63,10 +63,10 @@ class Interface : public GameObject {
         }
 
         icons.push_back(make_unique<SimpleObject>(144, "png/menhir.png"));
-        icons.back()->get_sprite().setScale(0.75, 0.75);
+        icons.back()->get_sprite().setScale(0.45, 0.45);
         icons.push_back(make_unique<SimpleObject>(144, "png/faith.png"));
         icons.push_back(make_unique<SimpleObject>(144, "png/altar.png"));
-        icons.back()->get_sprite().setScale(1.4, 1.4);
+        icons.back()->get_sprite().setScale(0.9, 0.9);
 
         selector.setFillColor(sf::Color(255, 255, 255, 0));
         selector.setOutlineColor(sf::Color::Red);
