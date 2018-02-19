@@ -96,6 +96,11 @@ class MainMode : public Component {
                     selected_tool = 3;
                     interface->select = 3;
                     break;
+                case sf::Keyboard::Num4:
+                case sf::Keyboard::Quote:
+                    selected_tool = 4;
+                    interface->select = 4;
+                    break;
                 default:
                     break;
             }
@@ -124,6 +129,9 @@ class MainMode : public Component {
                 object_layer->add_object(faith.back().get());
             } else if (selected_tool == 3) {
                 menhirs.emplace_back(new SimpleObject(w, "png/altar.png", last_click_coords, 0.2));
+                object_layer->add_object(menhirs.back().get());
+            } else if (selected_tool == 4) {
+                menhirs.emplace_back(new SimpleObject(w, "png/tree1.png", last_click_coords, 0.5));
                 object_layer->add_object(menhirs.back().get());
             }
 

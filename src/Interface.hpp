@@ -25,7 +25,7 @@
 class Interface : public GameObject {
     sf::Text text;
     sf::Font font;
-    int toolbar_size = 3;
+    int toolbar_size = 4;
     scalar button_size = 100;
     scalar space_between_buttons = 10;
     scalar total_width = toolbar_size * button_size + (toolbar_size - 1) * space_between_buttons;
@@ -67,6 +67,8 @@ class Interface : public GameObject {
         icons.push_back(make_unique<SimpleObject>(144, "png/faith.png"));
         icons.push_back(make_unique<SimpleObject>(144, "png/altar.png"));
         icons.back()->get_sprite().setScale(0.9, 0.9);
+        icons.push_back(make_unique<SimpleObject>(144, "png/tree1.png"));
+        icons.back()->get_sprite().setScale(0.45, 0.45);
 
         selector.setFillColor(sf::Color(255, 255, 255, 0));
         selector.setOutlineColor(sf::Color::Red);
