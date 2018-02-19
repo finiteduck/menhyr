@@ -29,6 +29,7 @@ using namespace tc;
 
 using std::vector;
 using std::unique_ptr;
+using std::make_unique;
 
 using vec = sf::Vector2f;
 using ivec = sf::Vector2i;
