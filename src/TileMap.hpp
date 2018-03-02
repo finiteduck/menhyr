@@ -61,6 +61,12 @@ class TileMap : public GameObject {
             quad[1].texCoords = tex_tl + vec{tile_dim.x, 0};
             quad[2].texCoords = tex_tl + tile_dim;
             quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
+            if (tile_type.second == 0) {
+                quad[0].color = sf::Color(255, 200, 200);
+                quad[1].color = sf::Color(255, 200, 200);
+                quad[2].color = sf::Color(255, 200, 200);
+                quad[3].color = sf::Color(255, 200, 200);
+            }
         }
     }
 };
