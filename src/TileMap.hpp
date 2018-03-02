@@ -34,11 +34,13 @@ class TileMap : public GameObject {
   public:
     TerrainMap* map;
 
-    TileMap() { port("map", &TileMap::map); }
-
-    void load(double w, const vector<HexCoords>& coords) {
+    TileMap() {
+        port("map", &TileMap::map);
         tileset.loadFromFile("png/alltiles.png");
         array.setPrimitiveType(sf::Quads);
+    }
+
+    void load(double w, const vector<HexCoords>& coords) {
         array.resize(coords.size() * 4);
 
         for (size_t i = 0; i < coords.size(); i++) {
@@ -49,8 +51,8 @@ class TileMap : public GameObject {
             vec hex_center = hex_coords.get_pixel(w);
             vec tl = hex_center - tile_center;
             vec br = tl + tile_dim;
-            int tile_type = map->get(hex_coords);
-            vec tex_tl = vec{0, tile_type * tile_dim.y};
+            TerrainMap::TileType tile_type = map->get(hex_coords);
+            vec tex_tl = vec{0, tile_type.first * tile_dim.y};
             quad[0].position = tl;
             quad[1].position = vec{br.x, tl.y};
             quad[2].position = br;

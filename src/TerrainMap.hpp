@@ -22,14 +22,18 @@
   ~*~ TerrainMap ~*~
 ==================================================================================================*/
 class TerrainMap : public Component {
-    using TileType = int;
+  public:
+    using TileType = std::pair<int, int>;
+
+  private:
     std::unordered_map<HexCoords, TileType> map;
 
   public:
     TileType get(const HexCoords& coords) {
         auto it = map.find(coords);
         if (it == map.end()) {
-            map.insert(std::make_pair(coords, rand() % 7));
+            auto data = std::make_pair(rand() % 7, rand() % 2);
+            map.insert(std::make_pair(coords, data));
             return map.at(coords);
         } else {
             return it->second;

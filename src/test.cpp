@@ -60,7 +60,7 @@ class MainMode : public Component {
         port("interface", &MainMode::interface);
         port("layer", &MainMode::object_layer);
 
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 4; i++) {
             persons.emplace_back(new Person(w));
             persons.back()->teleport_to(HexCoords(0, 0, 0));
         }
@@ -68,8 +68,6 @@ class MainMode : public Component {
 
     void load() {
         view_controller->update(w);
-        terrain->map->set(HexCoords::from_offset(5, 5), 7);
-
         auto hexes_to_draw = view_controller->get_visible_coords(w);
         terrain->load(w, hexes_to_draw);
         grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
