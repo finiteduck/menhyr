@@ -51,7 +51,7 @@ class Trees : public ObjectProvider, public DisplayUpdate {
         trees.clear();
         for (auto& coords : visible_coords) {
             if (map->get(coords).second == 0) {
-                trees.emplace_back(make_unique<SimpleObject>(144, "png/tree1.png", coords));
+                trees.emplace_back(make_unique<SimpleObject>(144, "png/tree1.png", coords, 0.5));
             }
         }
     }
