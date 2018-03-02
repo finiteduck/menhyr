@@ -15,15 +15,18 @@
 
 #pragma once
 
-#include "TerrainMap.hpp"
+#include "HexCoords.hpp"
+#include "TileData.hpp"
+#include "globals.hpp"
 
 /*
 ====================================================================================================
   ~*~ TileMap ~*~
 ==================================================================================================*/
-class TileMap : public GameObject {
+class TileMap : public sf::Drawable, public sf::Transformable {
     sf::Texture tileset;
     sf::VertexArray array;
+    int w{144};
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -32,26 +35,26 @@ class TileMap : public GameObject {
     }
 
   public:
-    TerrainMap* map;
-
-    TileMap() {
-        port("map", &TileMap::map);
-        tileset.loadFromFile("png/alltiles.png");
+    TileMap(string tileset_name = "png/alltiles.png") {
+        tileset.loadFromFile(tileset_name);
         array.setPrimitiveType(sf::Quads);
     }
 
-    void load(double w, const vector<HexCoords>& coords) {
-        array.resize(coords.size() * 4);
+    void load(const std::unordered_map<HexCoords, TileData>& grid) {
+        array.resize(grid.size() * 4);
 
-        for (size_t i = 0; i < coords.size(); i++) {
-            auto hex_coords = coords.at(i);
+        auto it = grid.begin();  // needs iteration with index
+        int i = 0;
+        while (it != grid.end()) {
+            auto hex_coords = it->first;
+            auto tile_type = it->second;
+
             sf::Vertex* quad = &array[i * 4];
             vec tile_dim{258, 193};
             vec tile_center{109, 88};
             vec hex_center = hex_coords.get_pixel(w);
             vec tl = hex_center - tile_center;
             vec br = tl + tile_dim;
-            TerrainMap::TileType tile_type = map->get(hex_coords);
             vec tex_tl = vec{0, tile_type.first * tile_dim.y};
             quad[0].position = tl;
             quad[1].position = vec{br.x, tl.y};
@@ -72,6 +75,8 @@ class TileMap : public GameObject {
                 quad[2].color = sf::Color::White;
                 quad[3].color = sf::Color::White;
             }
+            it++;
+            i++;
         }
     }
 };

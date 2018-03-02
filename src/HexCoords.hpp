@@ -27,6 +27,7 @@ class HexCoords {
 
   public:
     HexCoords() = default;
+    HexCoords(const HexCoords&) = default;
     HexCoords(int x, int y, int z) : x(x), y(y), z(z) {}
     HexCoords(cube c) : x(c.x), y(c.y), z(c.z) {}
 

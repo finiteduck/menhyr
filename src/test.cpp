@@ -14,6 +14,7 @@
   not, see <http://www.gnu.org/licenses/>.*/
 
 #include <memory>
+#include "Cell.hpp"
 #include "HexGrid.hpp"
 #include "Interface.hpp"
 #include "Layer.hpp"

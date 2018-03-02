@@ -13,9 +13,12 @@
   You should have received a copy of the GNU Lesser General Public License along with Menhyr. If
   not, see <http://www.gnu.org/licenses/>.*/
 
+#pragma once
+
 #include "Trees.hpp"  // TODO replace by objectprovider file
 #include "ViewController.hpp"
 #include "globals.hpp"
+
 /*
 ====================================================================================================
   ~*~ Layer ~*~
