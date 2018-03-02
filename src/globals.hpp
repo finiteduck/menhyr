@@ -45,7 +45,7 @@ using scalar = float;
 ====================================================================================================
   ~*~ virtual interfaces ~*~
 ==================================================================================================*/
-struct GameObject : public sf::Drawable, public sf::Transformable, public tc::Component {
+struct GameObject : public sf::Drawable, public sf::Transformable {
     virtual void animate(scalar) {}
 };
 

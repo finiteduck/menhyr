@@ -17,6 +17,7 @@
 
 #include <map>
 #include "HexCoords.hpp"
+#include "SimpleObject.hpp"
 #include "TileMap.hpp"
 
 /*
@@ -25,8 +26,7 @@
   A cell is a fairly large square of the world. It's atomic in terms of rendering and loading into
   memory. It contains map info and references to objects.
 ==================================================================================================*/
-class Cell : public sf::Drawable,
-             public sf::Transformable {  // not a component :) at least for now (too dynamic)
+class Cell : public GameObject {  // not a component :) at least for now (too dynamic)
     // storing objects by y coordinate to be able to draw them in order :)
     struct vec_compare_y {
         bool operator()(const vec& v1, const vec& v2) { return v1.y < v2.y; }
@@ -36,6 +36,8 @@ class Cell : public sf::Drawable,
     std::unordered_map<HexCoords, TileData> terrain_map;
     std::multimap<vec, GameObject*, vec_compare_y> objects;
     TileMap terrain_tilemap;
+
+    std::list<SimpleObject> trees;  // unique ptrs because simpleobjects are not movable :/
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -52,8 +54,13 @@ class Cell : public sf::Drawable,
         for (int x = tl.get_offset().x; x < br.get_offset().x; x++) {
             for (int y = tl.get_offset().y; y < br.get_offset().y; y++) {
                 // random tile among 7 + forest or not
+                auto coords = HexCoords::from_offset(x, y);
                 auto data = std::make_pair(rand() % 7, rand() % 2);
-                terrain_map.insert(std::make_pair(HexCoords::from_offset(x, y), data));
+                terrain_map.insert(std::make_pair(coords, data));
+                if (data.second == 0) {  // in case of forest, add tree
+                    trees.emplace_back(144, "png/tree1.png", coords, 0.5);  // TODO : w
+                    objects.insert(make_pair(trees.back().getOrigin(), &trees.back()));
+                }
             }
         }
         terrain_tilemap.load(terrain_map);

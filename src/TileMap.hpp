@@ -23,7 +23,7 @@
 ====================================================================================================
   ~*~ TileMap ~*~
 ==================================================================================================*/
-class TileMap : public sf::Drawable, public sf::Transformable {
+class TileMap : public GameObject {
     sf::Texture tileset;
     sf::VertexArray array;
     int w{144};

@@ -22,7 +22,7 @@
 ====================================================================================================
   ~*~ Interface ~*~
 ==================================================================================================*/
-class Interface : public GameObject {
+class Interface : public GameObject, public Component {
     sf::Text text;
     sf::Font font;
     int toolbar_size = 4;

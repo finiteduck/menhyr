@@ -18,7 +18,6 @@
 #include "HexGrid.hpp"
 #include "Interface.hpp"
 #include "Layer.hpp"
-#include "TerrainMap.hpp"
 #include "TileMap.hpp"
 #include "ViewController.hpp"
 #include "connectors.hpp"
@@ -40,17 +39,17 @@ class MainMode : public Component {
     vector<unique_ptr<SimpleObject>> menhirs;
     vector<unique_ptr<Faith>> faith;
 
+    // HACK
+    Cell cell{};
+
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
-    void add_update(DisplayUpdate* update) { display_updates.push_back(update); }
 
     // use ports
     Window* window;
     ViewController* view_controller;
-    TileMap* terrain;
     HexGrid* grid;
     Interface* interface;
     Layer* object_layer;
-    vector<DisplayUpdate*> display_updates;
 
     int selected_tool{1};
 
@@ -59,11 +58,9 @@ class MainMode : public Component {
         provide("persons", &MainMode::provide_persons);
         port("window", &MainMode::window);
         port("view", &MainMode::view_controller);
-        port("terrain", &MainMode::terrain);
         port("grid", &MainMode::grid);
         port("interface", &MainMode::interface);
         port("layer", &MainMode::object_layer);
-        port("displayUpdate", &MainMode::add_update);
 
         for (int i = 0; i < 4; i++) {
             persons.emplace_back(new Person(w));
@@ -71,10 +68,12 @@ class MainMode : public Component {
         }
     }
 
+    void init() { object_layer->add_object(&cell); }
+
     void load() {
         view_controller->update(w);
         auto hexes_to_draw = view_controller->get_visible_coords(w);
-        terrain->load(w, hexes_to_draw);
+        // terrain->load(w, hexes_to_draw); // FIXME
         grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
     }
 
@@ -151,11 +150,8 @@ class MainMode : public Component {
         vec pos = view_controller->get_mouse_position();
         if (view_controller->update(w)) {
             hexes_to_draw = view_controller->get_visible_coords(w);
-            terrain->load(w, hexes_to_draw);  // TODO : make a display_update
+            // terrain->load(w, hexes_to_draw);  // TODO : make a display_update
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
-            for (auto update : display_updates) {
-                update->update(hexes_to_draw);
-            }
         }
 
         for (auto& person : persons) {
@@ -190,6 +186,7 @@ class MainLoop : public Component {
     void go() {
         auto& wref = view_controller->get_draw_ref();
         view_controller->init();
+        main_mode->init();
 
         std::vector<scalar> frametimes;
 
@@ -246,39 +243,28 @@ int main() {
     model.component<MainLoop>("mainloop")
         .connect<Use<ViewController>>("viewcontroller", "viewcontroller")
         .connect<Use<MainMode>>("main_mode", "mainmode")
-        .connect<Use<Layer>>("layers", "terrainlayer")
         .connect<Use<Layer>>("layers", "gridlayer")
         .connect<Use<Layer>>("layers", "interfacelayer")
         .connect<Use<Layer>>("layers", "personlayer");
 
-    model.component<Layer>("terrainlayer")
-        .connect<Use<GameObject>>("objects", "terrain")
-        .connect<Use<View>>("view", "mainview");
     model.component<Layer>("gridlayer")
         .connect<Use<GameObject>>("objects", "grid")
         .connect<Use<View>>("view", "mainview");
     model.component<Layer>("personlayer")
         .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"))
-        .connect<Use<View>>("view", "mainview")
-        .connect<Use<ObjectProvider>>("providers", "trees");
+        .connect<Use<View>>("view", "mainview");
     model.component<Layer>("interfacelayer")
         .connect<Use<GameObject>>("objects", "interface")
         .connect<Use<View>>("view", "interfaceview");
 
-    model.component<Trees>("trees").connect<Use<TerrainMap>>("map", "terrainMap");
-
     model.component<MainMode>("mainmode")
         .connect<Use<Window>>("window", "window")
         .connect<Use<HexGrid>>("grid", "grid")
-        .connect<Use<TileMap>>("terrain", "terrain")
         .connect<Use<ViewController>>("view", "viewcontroller")
         .connect<Use<Layer>>("layer", "personlayer")
-        .connect<Use<Interface>>("interface", "interface")
-        .connect<Use<DisplayUpdate>>("displayUpdate", "trees");
+        .connect<Use<Interface>>("interface", "interface");
 
     model.component<Window>("window");
-    model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");
-    model.component<TerrainMap>("terrainMap");
     model.component<HexGrid>("grid");
     model.component<Interface>("interface");
 

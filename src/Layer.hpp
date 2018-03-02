@@ -15,7 +15,6 @@
 
 #pragma once
 
-#include "Trees.hpp"  // TODO replace by objectprovider file
 #include "ViewController.hpp"
 #include "globals.hpp"
 
@@ -25,26 +24,16 @@
 ==================================================================================================*/
 class Layer : public sf::Drawable, public Component {
     vector<GameObject*> objects;
-    vector<GameObject*> sorted_objects;
-    vector<ObjectProvider*> object_providers;
     View* view;
 
   public:
     Layer() {
         port("view", &Layer::view);
         port("objects", &Layer::add_object);
-        port("providers", &Layer::add_provider);
     }
 
     void before_draw() {
-        sorted_objects.clear();
-        sorted_objects.insert(sorted_objects.end(), objects.begin(), objects.end());
-        for (auto& provider : object_providers) {
-            auto provided_objects = provider->get_refs();
-            sorted_objects.insert(sorted_objects.end(), provided_objects.begin(),
-                                  provided_objects.end());
-        }
-        sort(sorted_objects.begin(), sorted_objects.end(), [](GameObject* ptr1, GameObject* ptr2) {
+        sort(objects.begin(), objects.end(), [](GameObject* ptr1, GameObject* ptr2) {
             return ptr1->getPosition().y < ptr2->getPosition().y;
         });
     }
@@ -53,10 +42,8 @@ class Layer : public sf::Drawable, public Component {
 
     void add_object(GameObject* ptr) { objects.push_back(ptr); }
 
-    void add_provider(ObjectProvider* provider) { object_providers.push_back(provider); }
-
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        for (auto& o : sorted_objects) {
+        for (auto& o : objects) {
             target.draw(*o, states);
         }
     }

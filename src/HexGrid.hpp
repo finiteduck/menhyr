@@ -21,7 +21,7 @@
 ====================================================================================================
   ~*~ HexGrid ~*~
 ==================================================================================================*/
-class HexGrid : public GameObject {
+class HexGrid : public GameObject, public Component {
     vector<sf::CircleShape> hexes;
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {

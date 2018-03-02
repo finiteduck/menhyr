@@ -1,4 +1,5 @@
-FLAGS = -Wall -Wextra
+FLAGS = -Wall -Wextra -g -fno-inline-functions -O0
+# FLAGS = -Wall -Wextra
 
 .PHONY: clean test
 
