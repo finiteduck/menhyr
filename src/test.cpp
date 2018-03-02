@@ -40,13 +40,16 @@ class MainMode : public Component {
     vector<unique_ptr<Faith>> faith;
 
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
+    void add_update(DisplayUpdate* update) { display_updates.push_back(update); }
 
+    // use ports
     Window* window;
     ViewController* view_controller;
     TileMap* terrain;
     HexGrid* grid;
     Interface* interface;
     Layer* object_layer;
+    vector<DisplayUpdate*> display_updates;
 
     int selected_tool{1};
 
@@ -59,6 +62,7 @@ class MainMode : public Component {
         port("grid", &MainMode::grid);
         port("interface", &MainMode::interface);
         port("layer", &MainMode::object_layer);
+        port("displayUpdate", &MainMode::add_update);
 
         for (int i = 0; i < 4; i++) {
             persons.emplace_back(new Person(w));
@@ -146,8 +150,11 @@ class MainMode : public Component {
         vec pos = view_controller->get_mouse_position();
         if (view_controller->update(w)) {
             hexes_to_draw = view_controller->get_visible_coords(w);
-            terrain->load(w, hexes_to_draw);
+            terrain->load(w, hexes_to_draw);  // TODO : make a display_update
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+            for (auto update : display_updates) {
+                update->update(hexes_to_draw);
+            }
         }
 
         for (auto& person : persons) {
@@ -251,10 +258,13 @@ int main() {
         .connect<Use<View>>("view", "mainview");
     model.component<Layer>("personlayer")
         .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"))
-        .connect<Use<View>>("view", "mainview");
+        .connect<Use<View>>("view", "mainview")
+        .connect<Use<ObjectProvider>>("providers", "trees");
     model.component<Layer>("interfacelayer")
         .connect<Use<GameObject>>("objects", "interface")
         .connect<Use<View>>("view", "interfaceview");
+
+    model.component<Trees>("trees").connect<Use<TerrainMap>>("map", "terrainMap");
 
     model.component<MainMode>("mainmode")
         .connect<Use<Window>>("window", "window")
@@ -262,7 +272,8 @@ int main() {
         .connect<Use<TileMap>>("terrain", "terrain")
         .connect<Use<ViewController>>("view", "viewcontroller")
         .connect<Use<Layer>>("layer", "personlayer")
-        .connect<Use<Interface>>("interface", "interface");
+        .connect<Use<Interface>>("interface", "interface")
+        .connect<Use<DisplayUpdate>>("displayUpdate", "trees");
 
     model.component<Window>("window");
     model.component<TileMap>("terrain").connect<Use<TerrainMap>>("map", "terrainMap");

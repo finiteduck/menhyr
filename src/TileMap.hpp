@@ -62,10 +62,15 @@ class TileMap : public GameObject {
             quad[2].texCoords = tex_tl + tile_dim;
             quad[3].texCoords = tex_tl + vec{0, tile_dim.y};
             if (tile_type.second == 0) {
-                quad[0].color = sf::Color(255, 200, 200);
-                quad[1].color = sf::Color(255, 200, 200);
-                quad[2].color = sf::Color(255, 200, 200);
-                quad[3].color = sf::Color(255, 200, 200);
+                quad[0].color = sf::Color(255, 230, 230);
+                quad[1].color = sf::Color(255, 230, 230);
+                quad[2].color = sf::Color(255, 230, 230);
+                quad[3].color = sf::Color(255, 230, 230);
+            } else {
+                quad[0].color = sf::Color::White;
+                quad[1].color = sf::Color::White;
+                quad[2].color = sf::Color::White;
+                quad[3].color = sf::Color::White;
             }
         }
     }
