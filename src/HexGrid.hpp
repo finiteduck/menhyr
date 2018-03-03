@@ -26,7 +26,7 @@ class HexGrid : public GameObject, public Component {
 
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
-        for (auto hex : hexes) {
+        for (auto& hex : hexes) {
             target.draw(hex, states);
         }
     }

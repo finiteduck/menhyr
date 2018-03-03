@@ -14,7 +14,7 @@
   not, see <http://www.gnu.org/licenses/>.*/
 
 #include <memory>
-#include "Cell.hpp"
+#include "CellGrid.hpp"
 #include "HexGrid.hpp"
 #include "Interface.hpp"
 #include "Layer.hpp"
@@ -39,9 +39,6 @@ class MainMode : public Component {
     vector<unique_ptr<SimpleObject>> menhirs;
     vector<unique_ptr<Faith>> faith;
 
-    // HACK
-    Cell cell{};
-
     vector<unique_ptr<Person>>* provide_persons() { return &persons; }
 
     // use ports
@@ -50,6 +47,7 @@ class MainMode : public Component {
     HexGrid* grid;
     Interface* interface;
     Layer* object_layer;
+    CellGrid* cell_grid;
 
     int selected_tool{1};
 
@@ -60,7 +58,8 @@ class MainMode : public Component {
         port("view", &MainMode::view_controller);
         port("grid", &MainMode::grid);
         port("interface", &MainMode::interface);
-        port("layer", &MainMode::object_layer);
+        port("objectLayer", &MainMode::object_layer);
+        port("cellGrid", &MainMode::cell_grid);
 
         for (int i = 0; i < 4; i++) {
             persons.emplace_back(new Person(w));
@@ -68,7 +67,7 @@ class MainMode : public Component {
         }
     }
 
-    void init() { object_layer->add_object(&cell); }
+    void init() {}
 
     void load() {
         view_controller->update(w);
@@ -150,8 +149,20 @@ class MainMode : public Component {
         vec pos = view_controller->get_mouse_position();
         if (view_controller->update(w)) {
             hexes_to_draw = view_controller->get_visible_coords(w);
-            // terrain->load(w, hexes_to_draw);  // TODO : make a display_update
             grid->load(w, hexes_to_draw, cursor_coords, toggle_grid);
+
+            // HACK
+            ivec tl = hexes_to_draw.front().get_offset();
+            ivec br = hexes_to_draw.back().get_offset();
+            auto floor = [](int i) { return i < 0 ? (i / 20) - 1 : i / 20; };
+            ivec ctl{floor(tl.x), floor(tl.y)};
+            ivec cbr{floor(br.x), floor(br.y)};
+            cout << ctl.x << ", " << ctl.y << " | " << cbr.x << ", " << cbr.y << endl;
+            for (int x = ctl.x; x <= cbr.x; x++) {
+                for (int y = ctl.y; y <= cbr.y; y++) {
+                    cell_grid->add_cell(ivec(x, y));
+                }
+            }
         }
 
         for (auto& person : persons) {
@@ -243,12 +254,16 @@ int main() {
     model.component<MainLoop>("mainloop")
         .connect<Use<ViewController>>("viewcontroller", "viewcontroller")
         .connect<Use<MainMode>>("main_mode", "mainmode")
+        .connect<Use<Layer>>("layers", "terrainlayer")
         .connect<Use<Layer>>("layers", "gridlayer")
         .connect<Use<Layer>>("layers", "interfacelayer")
         .connect<Use<Layer>>("layers", "personlayer");
 
     model.component<Layer>("gridlayer")
         .connect<Use<GameObject>>("objects", "grid")
+        .connect<Use<View>>("view", "mainview");
+    model.component<Layer>("terrainlayer")
+        .connect<Use<GameObject>>("objects", "cellGrid")
         .connect<Use<View>>("view", "mainview");
     model.component<Layer>("personlayer")
         .connect<UseObjectVector<Person>>("objects", PortAddress("persons", "mainmode"))
@@ -261,12 +276,14 @@ int main() {
         .connect<Use<Window>>("window", "window")
         .connect<Use<HexGrid>>("grid", "grid")
         .connect<Use<ViewController>>("view", "viewcontroller")
-        .connect<Use<Layer>>("layer", "personlayer")
-        .connect<Use<Interface>>("interface", "interface");
+        .connect<Use<Layer>>("objectLayer", "personlayer")
+        .connect<Use<Interface>>("interface", "interface")
+        .connect<Use<CellGrid>>("cellGrid", "cellGrid");
 
     model.component<Window>("window");
     model.component<HexGrid>("grid");
     model.component<Interface>("interface");
+    model.component<CellGrid>("cellGrid");
 
     model.component<View>("mainview").connect<Use<Window>>("window", "window");
     model.component<View>("interfaceview", true).connect<Use<Window>>("window", "window");
