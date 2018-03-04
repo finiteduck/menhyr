@@ -41,11 +41,13 @@ using ivec = sf::Vector2i;
 using cube = sf::Vector3i;
 using scalar = float;
 
+using sf::Drawable;
+
 /*
 ====================================================================================================
   ~*~ virtual interfaces ~*~
 ==================================================================================================*/
-struct GameObject : public sf::Drawable, public sf::Transformable {
+struct GameObject : public Drawable, public sf::Transformable {
     virtual void animate(scalar) {}
 };
 
