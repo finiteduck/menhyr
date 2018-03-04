@@ -16,6 +16,7 @@
 #pragma once
 
 #include <map>
+#include "GameEntity.hpp"
 #include "HexCoords.hpp"
 #include "SimpleObject.hpp"
 #include "TileMap.hpp"
@@ -26,18 +27,38 @@
   A cell is a fairly large square of the world. It's atomic in terms of rendering and loading into
   memory. It contains map info and references to objects.
 ==================================================================================================*/
-class Cell : public GameObject {  // not a component :) at least for now (too dynamic)
+class CellState {
+    std::unordered_map<HexCoords, TileData> terrain_map;
+
+  public:
+    CellState(HexCoords tl = HexCoords::from_offset(0, 0),
+              HexCoords br = HexCoords::from_offset(10, 10)) {
+        // at cell creation, randomly initialize terrain
+        for (int x = tl.get_offset().x; x < br.get_offset().x; x++) {
+            for (int y = tl.get_offset().y; y < br.get_offset().y; y++) {
+                // random tile among 7 + forest or not
+                auto coords = HexCoords::from_offset(x, y);
+                auto data = std::make_pair(rand() % 7, rand() % 2);
+                terrain_map.insert(std::make_pair(coords, data));
+            }
+        }
+    }
+
+    std::unordered_map<HexCoords, TileData>& get_map() { return terrain_map; }
+
+    // TileData get_terrain_at(const HexCoords& coords) const { return terrain_map.at(coords); }
+};
+
+class CellAppearance : public GameObject {
     // storing objects by y coordinate to be able to draw them in order :)
     struct vec_compare_y {
         bool operator()(const vec& v1, const vec& v2) { return v1.y < v2.y; }
     };
 
-    HexCoords tl, br;
-    std::unordered_map<HexCoords, TileData> terrain_map;
+    CellState& state;
     std::multimap<vec, GameObject*, vec_compare_y> objects;
     TileMap terrain_tilemap;
-
-    std::list<SimpleObject> trees;  // unique ptrs because simpleobjects are not movable :/
+    std::list<SimpleObject> trees;
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -48,36 +69,20 @@ class Cell : public GameObject {  // not a component :) at least for now (too dy
     }
 
   public:
-    Cell(HexCoords tl = HexCoords::from_offset(0, 0), HexCoords br = HexCoords::from_offset(10, 10))
-        : tl(tl), br(br) {
-        // at cell creation, randomly initialize terrain
-        for (int x = tl.get_offset().x; x < br.get_offset().x; x++) {
-            for (int y = tl.get_offset().y; y < br.get_offset().y; y++) {
-                // random tile among 7 + forest or not
-                auto coords = HexCoords::from_offset(x, y);
-                auto data = std::make_pair(rand() % 7, rand() % 2);
-                terrain_map.insert(std::make_pair(coords, data));
-                if (data.second == 0) {  // in case of forest, add tree
-                    trees.emplace_back(144, "png/tree1.png", coords, 0.5);  // TODO : w
-                    objects.insert(make_pair(trees.back().getOrigin(), &trees.back()));
-                }
+    CellAppearance(CellState& state) : state(state) { update(); }
+
+    void update() {
+        trees.clear();
+        objects.clear();
+        for (auto& hex : state.get_map()) {
+            auto data = std::make_pair(rand() % 7, rand() % 2);
+            if (data.second == 0) {  // in case of forest, add tree
+                trees.emplace_back(144, "png/tree1.png", hex.first, 0.5);  // TODO : w
+                objects.insert(make_pair(trees.back().getOrigin(), &trees.back()));
             }
         }
-        terrain_tilemap.load(terrain_map);
+        terrain_tilemap.load(state.get_map());
     }
-
-    void add_object(vec coords, GameObject* object) { objects.insert(make_pair(coords, object)); }
-
-    TileData get_terrain_at(const HexCoords& coords) const { return terrain_map.at(coords); }
-
-    // tests hex rectangle (in offset coordinates) intersection
-    bool intersects(HexCoords& tl2, HexCoords& br2) const {
-        auto tl_o = tl.get_offset(), br_o = br.get_offset();
-        auto tl2_o = tl2.get_offset(), br2_o = br2.get_offset();
-        return tl2_o.x <= br_o.x and tl2_o.y <= br_o.y and tl_o.x <= br2_o.x and tl_o.y <= br2_o.y;
-    }
-
-    // TODO to and from file function
-
-    // TODO transfer object to other Cell
 };
+
+using Cell = GameEntity<CellState, CellAppearance>;

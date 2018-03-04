@@ -36,6 +36,7 @@ struct DummyState {
         is >> ds.data;
         return is;
     }
+    DummyState(int i) : data(i) {}
     int data;
     void update(int i) { data += i; }
 };
@@ -49,8 +50,7 @@ struct DummyAppearance : public string {
 
 TEST_CASE("Basic GameEntity test.") {
     stringstream ss;
-    GameEntity<DummyState, DummyAppearance> entity(DummyState{17});
-    entity.enable_appearance();
+    GameEntity<DummyState, DummyAppearance> entity(17);
     DummyRender render{ss};
 
     entity.draw(render);

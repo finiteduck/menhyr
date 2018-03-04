@@ -40,7 +40,10 @@ class GameEntity {
     }
 
   public:
-    GameEntity(State state) : state(state) {}
+    template <class... Args>
+    GameEntity(Args&&... args) : state(std::forward<Args>(args)...) {
+        enable_appearance();
+    }
 
     // drawable part can be disabled at anytime to free memory
     // (TODO: should appearance presence be checked when used?)
@@ -53,20 +56,16 @@ class GameEntity {
         appearance->update();
     }
 
-    template <class RenderTarget>
-    void draw(RenderTarget& t, const string& layer = "") {  // TODO: separate overloads?
-        if (layer == "") {
-            t.draw(*appearance);
-        } else {
-            t.draw(appearance->layer(layer));
-        }
+    template <class RenderTarget>  // TODO render states
+    void draw(RenderTarget& t) const {
+        t.draw(*appearance);
+    }
+
+    template <class RenderTarget>  // TODO render states
+    void draw(RenderTarget& t, const string& layer) const {
+        t.draw(appearance->layer(layer));
     }
 
     // State& get_state() { return state; }
     // Appearance& get_appearance() { return appearance; }
 };
-
-/*
-====================================================================================================
-  ~*~ Stream operators ~*~
-==================================================================================================*/

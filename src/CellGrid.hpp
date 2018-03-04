@@ -35,7 +35,8 @@ class CellGrid : public GameObject, public Component {
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
         for (auto& cell : cells) {  // sorted by increasing y
-            target.draw(cell.second, states);
+            cell.second.draw(target);
+            // target.draw(cell.second, states); // TODO update when states in entity
         }
     }
 
