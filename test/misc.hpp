@@ -18,7 +18,7 @@
 
 /*
 ====================================================================================================
-  ~*~ TESTS ~*~
+  ~*~ GameEntity ~*~
 ==================================================================================================*/
 using namespace std;
 
@@ -28,19 +28,22 @@ struct DummyRender {
 };
 
 struct DummyState {
+    friend ostream& operator<<(ostream& os, const DummyState& ds) {
+        os << ds.data;
+        return os;
+    }
+    friend istream& operator>>(istream& is, DummyState& ds) {
+        is >> ds.data;
+        return is;
+    }
     int data;
     void update(int i) { data += i; }
 };
 
-inline ostream& operator<<(ostream& os, DummyState& ds) {
-    os << ds.data;
-    return os;
-}
-
 struct DummyAppearance : public string {
-    DummyAppearance(DummyState state) { assign(to_string(state.data)); }
-    void update() { push_back('-'); }
-    void update(int) { push_back('x'); }
+    DummyState& state;
+    void update() { assign(to_string(state.data)); }
+    DummyAppearance(DummyState& state) : state(state) { update(); }
     string layer(string layer) { return layer + ":" + *this; }
 };
 
@@ -56,5 +59,15 @@ TEST_CASE("Basic GameEntity test.") {
 
     entity.update(3);
     entity.draw(render, "mylayer");
-    CHECK(ss.str() == "mylayer:17x");
+    CHECK(ss.str() == "mylayer:20");
+    ss.str("");
+
+    ss << entity;
+    CHECK(ss.str() == "20");
+    ss.str("");
+
+    stringstream ss2{"119"};
+    ss2 >> entity;
+    entity.draw(render, "other");
+    CHECK(ss.str() == "other:119");
 }

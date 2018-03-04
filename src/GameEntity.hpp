@@ -25,11 +25,19 @@
 ==================================================================================================*/
 template <class State, class Appearance>
 class GameEntity {
-    unique_ptr<Appearance> appearance;  // should provide Appearance(State), update(...), layer(...)
+    unique_ptr<Appearance> appearance;  // should provide Appearance(State&), update(), layer(str)
     State state;                        // should provide stream operators, update(...)
 
-    friend std::ostream& operator<<(std::ostream&, const GameEntity<State, Appearance>&);
-    friend std::istream& operator>>(std::istream&, GameEntity<State, Appearance>&);
+    friend std::ostream& operator<<(std::ostream& os, const GameEntity<State, Appearance>& ge) {
+        os << ge.state;
+        return os;
+    }
+
+    friend std::istream& operator>>(std::istream& is, GameEntity<State, Appearance>& ge) {
+        is >> ge.state;
+        ge.appearance->update();
+        return is;
+    }
 
   public:
     GameEntity(State state) : state(state) {}
@@ -40,19 +48,9 @@ class GameEntity {
     void disable_appearance() { appearance.reset(nullptr); }
 
     template <class... Args>
-    void state_update(Args&&... args) {
+    void update(Args&&... args) {
         state.update(std::forward<Args>(args)...);
-    }
-
-    template <class... Args>
-    void appearance_update(Args&&... args) {
-        appearance->update(std::forward<Args>(args)...);
-    }
-
-    template <class... Args>
-    void update(Args... args) {
-        state_update(args...);
-        appearance_update(args...);
+        appearance->update();
     }
 
     template <class RenderTarget>
@@ -72,14 +70,3 @@ class GameEntity {
 ====================================================================================================
   ~*~ Stream operators ~*~
 ==================================================================================================*/
-template <class State, class Appearance>
-inline std::ostream& operator<<(std::ostream& os, const GameEntity<State, Appearance>& ge) {
-    os << ge.state;
-    return os;
-}
-
-template <class State, class Appearance>
-inline std::istream& operator>>(std::istream& is, GameEntity<State, Appearance>& ge) {
-    is >> ge.state;
-    return is;
-}
