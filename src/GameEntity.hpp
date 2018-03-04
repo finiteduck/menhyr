@@ -25,12 +25,14 @@
 ==================================================================================================*/
 template <class State, class Appearance>
 class GameEntity {
-    unique_ptr<Appearance> appearance;  // drawable should be constructible from state
-    State state;                        // state should provide stream operators
+    unique_ptr<Appearance> appearance;  // should provide Appearance(State), update(...), layer(...)
+    State state;                        // should provide stream operators, update(...)
 
   public:
     GameEntity(State state) : state(state) {}
 
+    // drawable part can be disabled at anytime to free memory
+    // (TODO: should appearance presence be checked when used?)
     void enable_drawable() { appearance = make_unique(state); }
     void disable_drawable() { appearance.reset(nullptr); }
 
@@ -48,6 +50,14 @@ class GameEntity {
     void update(Args... args) {
         state.update(args...);
         appearance.update(args...);
+    }
+
+    void draw(sf::RenderWindow& w, const string& layer = "") {
+        if (layer != "") {
+            w.draw(appearance);
+        } else {
+            w.draw(appearance.layer(layer));
+        }
     }
 
     // State& get_state() { return state; }
