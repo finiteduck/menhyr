@@ -45,8 +45,9 @@ class CellGrid : public GameObject, public Component {
         if (cells.find(coords) == cells.end()) {
             auto tl = coords * cell_size;
             auto unit = ivec(1, 1);
-            cells[coords] =
-                Cell(HexCoords::from_offset(tl), HexCoords::from_offset(tl + cell_size * unit));
+            cells.emplace(std::piecewise_construct, std::forward_as_tuple(coords),
+                          std::forward_as_tuple(HexCoords::from_offset(tl),
+                                                HexCoords::from_offset(tl + cell_size * unit)));
         }
     }
 

@@ -15,17 +15,28 @@
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include "GameEntity.hpp"
 #include "HexCoords.hpp"
 #include "SimpleObject.hpp"
 #include "TileMap.hpp"
 
+class CellState;
+class CellAppearance;
+
 /*
 ====================================================================================================
   ~*~ Cell ~*~
   A cell is a fairly large square of the world. It's atomic in terms of rendering and loading into
   memory. It contains map info and references to objects.
+==================================================================================================*/
+using Cell = GameEntity<CellState, CellAppearance>;
+
+/*
+====================================================================================================
+  ~*~ Cell State ~*~
+  Basically, a HexCoords -> TileData map.
 ==================================================================================================*/
 class CellState {
     std::unordered_map<HexCoords, TileData> terrain_map;
@@ -46,9 +57,16 @@ class CellState {
 
     std::unordered_map<HexCoords, TileData>& get_map() { return terrain_map; }
 
+    // TODO : stream operators
+
     // TileData get_terrain_at(const HexCoords& coords) const { return terrain_map.at(coords); }
 };
 
+/*
+====================================================================================================
+  ~*~ Cell Appearance ~*~
+  A tilemap with the terrain tiles + objects (trees + potentially other things).
+==================================================================================================*/
 class CellAppearance : public GameObject {
     // storing objects by y coordinate to be able to draw them in order :)
     struct vec_compare_y {
@@ -58,7 +76,9 @@ class CellAppearance : public GameObject {
     CellState& state;
     std::multimap<vec, GameObject*, vec_compare_y> objects;
     TileMap terrain_tilemap;
-    std::list<SimpleObject> trees;
+
+    vector<unique_ptr<SimpleObject>> trees;
+    sf::Texture tree_texture;
 
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
         states.transform *= getTransform();
@@ -69,20 +89,23 @@ class CellAppearance : public GameObject {
     }
 
   public:
-    CellAppearance(CellState& state) : state(state) { update(); }
+    CellAppearance(CellState& state) : state(state) {
+        tree_texture.loadFromFile("png/tree1.png");
+        update();
+    }
 
     void update() {
+        auto terrain_map = state.get_map();
         trees.clear();
         objects.clear();
-        for (auto& hex : state.get_map()) {
+        for (auto& hex : terrain_map) {
             auto data = std::make_pair(rand() % 7, rand() % 2);
             if (data.second == 0) {  // in case of forest, add tree
-                trees.emplace_back(144, "png/tree1.png", hex.first, 0.5);  // TODO : w
-                objects.insert(make_pair(trees.back().getOrigin(), &trees.back()));
+                trees.push_back(
+                    make_unique<SimpleObject>(144, tree_texture, hex.first, 0.5));  // TODO : w
+                objects.insert(make_pair(trees.back()->getOrigin(), trees.back().get()));
             }
         }
-        terrain_tilemap.load(state.get_map());
+        terrain_tilemap.load(terrain_map);
     }
 };
-
-using Cell = GameEntity<CellState, CellAppearance>;
