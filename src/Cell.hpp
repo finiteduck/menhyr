@@ -98,11 +98,10 @@ class CellAppearance : public GameObject {
         auto terrain_map = state.get_map();
         trees.clear();
         objects.clear();
-        for (auto& hex : terrain_map) {
-            auto data = std::make_pair(rand() % 7, rand() % 2);
-            if (data.second == 0) {  // in case of forest, add tree
+        for (auto&& tile : state.get_map()) {
+            if (tile.second.second == 0) {  // in case of forest, add tree
                 trees.push_back(
-                    make_unique<SimpleObject>(144, tree_texture, hex.first, 0.5));  // TODO : w
+                    make_unique<SimpleObject>(144, tree_texture, tile.first, 0.5));  // TODO : w
                 objects.insert(make_pair(trees.back()->getOrigin(), trees.back().get()));
             }
         }
